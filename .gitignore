@@ -4,8 +4,6 @@
 *.key
 
 # Data (gerenciado pelo DVC)
-data/raw/
-data/processed/
 *.csv
 *.parquet
 *.pkl
@@ -43,4 +41,7 @@ Thumbs.db
 chroma_db/
 
 # Diretrizes
-directrizes/
+diretrizes/
+
+# Claude
+.claude/

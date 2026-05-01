@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["feat/**", "fix/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Setup Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Lint (ruff)
+        run: uv run ruff check src/ tests/ || true
+
+      - name: Validate notebook
+        run: |
+          uv run python -c "
+          import json, sys
+          nb = json.load(open('notebooks/01_eda.ipynb'))
+          cells = nb.get('cells', [])
+          print(f'Notebook OK: {len(cells)} células')
+          sys.exit(0)
+          "

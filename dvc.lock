@@ -1,0 +1,17 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: uv run python src/models/train.py
+    deps:
+    - path: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+      hash: md5
+      md5: 0f9de68e012bd3aed5fa7cdc9fc421af
+      size: 977501
+    - path: src/features/feature_engineering.py
+      hash: md5
+      md5: d518706513df6414bbc0dde0e882d2bd
+      size: 3182
+    - path: src/models/train.py
+      hash: md5
+      md5: e558bfab850458a347b2e7e9fda80c08
+      size: 4808
