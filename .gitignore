@@ -4,8 +4,6 @@
 *.key
 
 # Data (gerenciado pelo DVC)
-data/raw/
-data/processed/
 *.csv
 *.parquet
 *.pkl

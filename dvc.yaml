@@ -1,0 +1,7 @@
+stages:
+  train:
+    cmd: uv run python src/models/train.py
+    deps:
+      - src/models/train.py
+      - src/features/feature_engineering.py
+      - data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv

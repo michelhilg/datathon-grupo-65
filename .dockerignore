@@ -1,0 +1,28 @@
+# DVC logs
+.dvc/tmp
+
+# Ambientes Python e caches
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# MLflow
+mlruns
+mlartifacts
+mlflow.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode
+.idea
+*.swp
+
+# Artifacts do Claude/Gemini
+.claude
+.gemini
