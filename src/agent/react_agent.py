@@ -55,13 +55,18 @@ def analyze_customer(
     Returns:
         Análise completa com risco, fatores e estratégias de retenção.
     """
-    if question is None:
-        question = (
+    if not question or not question.strip() or question == "string":
+        final_prompt = (
             f"Analise o risco de churn do seguinte cliente e forneça: "
             f"(1) probabilidade de churn, (2) principais fatores de risco, "
             f"(3) estratégias de retenção personalizadas. "
             f"Dados do cliente: {customer_json}"
         )
+    else:
+        final_prompt = (
+            f"O usuário fez a seguinte pergunta sobre retenção de clientes: '{question}'.\n\n"
+            f"Por favor, use as ferramentas disponíveis para responder, analisando também os seguintes dados do cliente: {customer_json}"
+        )
 
-    result = agent.invoke({"messages": [HumanMessage(content=question)]})
+    result = agent.invoke({"messages": [HumanMessage(content=final_prompt)]})
     return result["messages"][-1].content

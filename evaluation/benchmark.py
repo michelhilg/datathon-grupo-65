@@ -13,6 +13,9 @@ import time
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -68,6 +71,9 @@ def run_benchmark():
     """Executa benchmark com as 3 configurações e salva resultados."""
     with open(CONFIG_PATH) as f:
         config = yaml.safe_load(f)
+
+    import sys
+    sys.path.append(str(Path(__file__).parent.parent))
 
     from src.agent.rag_pipeline import build_index
     from src.agent.tools import build_tools

@@ -62,6 +62,9 @@ def churn_predictor(customer_json: str) -> str:
         feature_cols = [c for c in df_features.columns if c != "Churn"]
         X = df_features[feature_cols].astype(float)
 
+        if hasattr(model, "feature_names_in_"):
+            X = X.reindex(columns=model.feature_names_in_, fill_value=0.0)
+
         prob = float(model.predict_proba(X)[0][1])
         prediction = "Churn" if prob >= 0.5 else "No Churn"
         risk = "Alto" if prob >= 0.7 else ("Médio" if prob >= 0.4 else "Baixo")
@@ -95,6 +98,10 @@ def feature_importance(customer_json: str) -> str:
         model = _get_model()
         feature_cols = [c for c in df_features.columns if c != "Churn"]
         X = df_features[feature_cols].astype(float)
+
+        if hasattr(model, "feature_names_in_"):
+            X = X.reindex(columns=model.feature_names_in_, fill_value=0.0)
+            feature_cols = list(model.feature_names_in_)
 
         if not hasattr(model, "feature_importances_"):
             return json.dumps({"error": "Modelo não suporta feature_importances_"})

@@ -13,7 +13,7 @@ load_dotenv()
 
 from src.agent.rag_pipeline import build_index
 from src.agent.react_agent import analyze_customer, create_churn_agent
-from src.agent.tools import build_tools
+from src.agent.tools import build_tools, churn_predictor
 
 logger = logging.getLogger(__name__)
 
@@ -47,35 +47,51 @@ app = FastAPI(
 )
 
 
+CUSTOMER_EXAMPLE = {
+    "tenure": 2,
+    "MonthlyCharges": 75.50,
+    "TotalCharges": "151.00",
+    "Contract": "Month-to-month",
+    "InternetService": "Fiber optic",
+    "OnlineSecurity": "No",
+    "TechSupport": "No",
+    "PaymentMethod": "Electronic check",
+    "PaperlessBilling": "Yes",
+    "gender": "Male",
+    "SeniorCitizen": 0,
+    "Partner": "No",
+    "Dependents": "No",
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "OnlineBackup": "No",
+    "DeviceProtection": "No",
+    "StreamingTV": "No",
+    "StreamingMovies": "No",
+}
+
+
 class AnalysisRequest(BaseModel):
     customer_features: dict[str, Any] = Field(
         description="Features brutas do cliente no formato Telco dataset.",
-        examples=[{
-            "tenure": 2,
-            "MonthlyCharges": 75.50,
-            "TotalCharges": "151.00",
-            "Contract": "Month-to-month",
-            "InternetService": "Fiber optic",
-            "OnlineSecurity": "No",
-            "TechSupport": "No",
-            "PaymentMethod": "Electronic check",
-            "PaperlessBilling": "Yes",
-            "gender": "Male",
-            "SeniorCitizen": 0,
-            "Partner": "No",
-            "Dependents": "No",
-            "PhoneService": "Yes",
-            "MultipleLines": "No",
-            "OnlineBackup": "No",
-            "DeviceProtection": "No",
-            "StreamingTV": "No",
-            "StreamingMovies": "No",
-        }]
+        examples=[CUSTOMER_EXAMPLE],
     )
     question: str | None = Field(
         default=None,
         description="Pergunta customizada. Se não informada, usa análise padrão completa.",
     )
+
+
+class PredictRequest(BaseModel):
+    customer_features: dict[str, Any] = Field(
+        description="Features brutas do cliente no formato Telco dataset.",
+        examples=[CUSTOMER_EXAMPLE],
+    )
+
+
+class PredictResponse(BaseModel):
+    churn_probability: float
+    prediction: str
+    risk_level: str
 
 
 class AnalysisResponse(BaseModel):
@@ -88,6 +104,26 @@ def health():
     """Verifica se a aplicação está pronta para receber requisições."""
     ready = "agent" in _app_state
     return {"status": "ok" if ready else "initializing", "agent_ready": ready}
+
+
+@app.post("/predict", response_model=PredictResponse)
+def predict(request: PredictRequest):
+    """Chama o modelo ML diretamente — sem agente, sem LLM.
+
+    Útil para testar se o modelo está carregado e funcionando corretamente.
+    Retorna probabilidade de churn, predição e nível de risco.
+    """
+    customer_json = json.dumps(request.customer_features, ensure_ascii=False)
+    try:
+        raw = json.loads(churn_predictor.invoke(customer_json))
+        if "error" in raw:
+            raise HTTPException(status_code=500, detail=raw["error"])
+        return PredictResponse(**raw)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Erro no /predict: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/analyze", response_model=AnalysisResponse)
