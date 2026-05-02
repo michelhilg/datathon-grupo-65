@@ -5,8 +5,11 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+load_dotenv()
 
 from src.agent.rag_pipeline import build_index
 from src.agent.react_agent import analyze_customer, create_churn_agent
