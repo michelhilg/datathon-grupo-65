@@ -4,7 +4,6 @@ import time
 from typing import TYPE_CHECKING
 
 from prometheus_client import Counter, Histogram
-from prometheus_client.registry import CollectorRegistry
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -54,6 +53,12 @@ TOOL_CALL_COUNTER = _make_counter(
     "agent_tool_calls_total",
     "Total de chamadas às tools do agente ReAct.",
     ["tool_name", "status"],
+)
+
+SECURITY_BLOCK_COUNTER = _make_counter(
+    "security_blocks_total",
+    "Total de requisições bloqueadas pelos guardrails de segurança.",
+    ["block_type"],
 )
 
 

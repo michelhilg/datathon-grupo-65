@@ -19,12 +19,14 @@ from src.agent.react_agent import analyze_customer, create_churn_agent
 from src.agent.tools import build_tools, churn_predictor
 from src.monitoring import (
     CHURN_PROBABILITY_HISTOGRAM,
+    SECURITY_BLOCK_COUNTER,
     TOOL_CALL_COUNTER,
     ContextAccumulatorHandler,
     DriftDetector,
     get_langfuse_handler,
     setup_prometheus_middleware,
 )
+from src.security import InputGuardrail, OutputGuardrail
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,15 @@ async def lifespan(_app: FastAPI):
     _app_state["agent"] = agent
     _app_state["tools"] = tools
     _app_state["drift_detector"] = DriftDetector(window_size=500)
+    _app_state["input_guardrail"] = InputGuardrail(
+        allowed_topics=[
+            "churn", "retenção", "retention", "cliente", "customer",
+            "contrato", "contract", "serviço", "service", "telecom",
+            "internet", "pagamento", "payment", "cancelamento", "cancel",
+            "plano", "plan", "fidelidade", "desconto", "upgrade",
+        ]
+    )
+    _app_state["output_guardrail"] = OutputGuardrail()
     logger.info("Agente inicializado com %d tools", len(tools))
     yield
     _app_state.clear()
@@ -165,6 +176,13 @@ def analyze(request: AnalysisRequest):
     if "agent" not in _app_state:
         raise HTTPException(status_code=503, detail="Agente ainda não inicializado.")
 
+    if request.question:
+        is_valid, reason = _app_state["input_guardrail"].validate(request.question)
+        if not is_valid:
+            block_type = "injection" if "suspeito" in reason else "out_of_scope"
+            SECURITY_BLOCK_COUNTER.labels(block_type=block_type).inc()
+            raise HTTPException(status_code=400, detail=reason)
+
     customer_json = json.dumps(request.customer_features, ensure_ascii=False)
     customer_id = str(request.customer_features.get("customerID", ""))
 
@@ -185,13 +203,15 @@ def analyze(request: AnalysisRequest):
             config=config,
         )
 
+        sanitized = _app_state["output_guardrail"].sanitize(result)
+
         TOOL_CALL_COUNTER.labels(tool_name="analyze", status="success").inc()
 
         if "drift_detector" in _app_state:
             _app_state["drift_detector"].record(request.customer_features)
 
         return AnalysisResponse(
-            analysis=result,
+            analysis=sanitized,
             customer_id=customer_id or None,
             contexts=ctx_cb.captured_contexts if request.include_contexts else None,
         )
