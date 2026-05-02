@@ -1,0 +1,49 @@
+{
+  "judge_model": "gpt-4o-mini",
+  "n_evaluated": 3,
+  "n_valid": 3,
+  "averages": {
+    "fidelidade_aos_dados": 9.0,
+    "relevancia_estrategica": 8.0,
+    "valor_acao_retencao": 7.6667,
+    "clareza_estrutura": 9.0
+  },
+  "per_pair": [
+    {
+      "id": "gs_001",
+      "profile_type": "high_risk",
+      "scores": {
+        "fidelidade_aos_dados": 10,
+        "relevancia_estrategica": 9,
+        "valor_acao_retencao": 8,
+        "clareza_estrutura": 9,
+        "justificativa": "A resposta do agente é precisa em relação aos dados de churn e fatores de risco, mas poderia incluir uma recomendação mais específica sobre o contato proativo. As ações de retenção são relevantes e bem estruturadas."
+      },
+      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 80.07%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\nO cliente apresenta um alto risco de churn, com uma probabilidade superior a 70%. Isso indica que ele está propenso a cancelar os serviços.\n\n### Fatores de Risco Identificados\n\nEmbora "
+    },
+    {
+      "id": "gs_002",
+      "profile_type": "high_risk",
+      "scores": {
+        "fidelidade_aos_dados": 9,
+        "relevancia_estrategica": 8,
+        "valor_acao_retencao": 9,
+        "clareza_estrutura": 9,
+        "justificativa": "A resposta do agente é bastante precisa em relação aos dados e fatores de risco, mas poderia ter incluído uma análise mais detalhada sobre a percepção de custo-benefício. As ações de retenção são concretas e bem estruturadas, facilitando a execução."
+      },
+      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 80%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\nO cliente apresenta um alto risco de churn, com uma probabilidade de 80%. Isso indica que é crucial implementar ações de retenção imediatamente para evitar a perda deste cliente.\n\n### Pri"
+    },
+    {
+      "id": "gs_003",
+      "profile_type": "high_risk",
+      "scores": {
+        "fidelidade_aos_dados": 8,
+        "relevancia_estrategica": 7,
+        "valor_acao_retencao": 6,
+        "clareza_estrutura": 9,
+        "justificativa": "A resposta apresenta uma boa análise de risco, mas não menciona a alta taxa de churn associada a clientes idosos sem suporte técnico, o que é crucial. As recomendações, embora relevantes, poderiam ser mais específicas e direcionadas ao perfil do cliente."
+      },
+      "answer_preview": "### Análise de Risco de Churn\n\n**Cliente Analisado:**\n- **Tenure:** 3 meses\n- **Monthly Charges:** R$ 45,20\n- **Total Charges:** R$ 135,60\n- **Contrato:** Month-to-month\n- **Serviço de Internet:** DSL\n- **Serviços Adicionais:** Sem Online Security, Tech Support, Online Backup, Device Protection\n- **"
+    }
+  ]
+}

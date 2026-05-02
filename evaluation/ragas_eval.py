@@ -13,7 +13,14 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from dotenv import load_dotenv
+
+# Adiciona a raiz do projeto ao sys.path
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 load_dotenv()
 
@@ -151,10 +158,10 @@ def run_ragas_evaluation(rows: list[dict]) -> dict:
     )
 
     scores = {
-        "faithfulness": float(result["faithfulness"]),
-        "answer_relevancy": float(result["answer_relevancy"]),
-        "context_precision": float(result["context_precision"]),
-        "context_recall": float(result["context_recall"]),
+        "faithfulness": float(np.nanmean(result["faithfulness"])),
+        "answer_relevancy": float(np.nanmean(result["answer_relevancy"])),
+        "context_precision": float(np.nanmean(result["context_precision"])),
+        "context_recall": float(np.nanmean(result["context_recall"])),
     }
     return scores
 
