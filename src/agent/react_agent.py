@@ -3,6 +3,7 @@ import logging
 
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables.config import RunnableConfig
 from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ def analyze_customer(
     agent,
     customer_json: str,
     question: str | None = None,
+    config: RunnableConfig | None = None,
 ) -> str:
     """Executa análise completa de churn para um cliente.
 
@@ -68,5 +70,6 @@ def analyze_customer(
             f"Por favor, use as ferramentas disponíveis para responder, analisando também os seguintes dados do cliente: {customer_json}"
         )
 
-    result = agent.invoke({"messages": [HumanMessage(content=final_prompt)]})
+    invoke_kwargs = {"messages": [HumanMessage(content=final_prompt)]}
+    result = agent.invoke(invoke_kwargs, config=config) if config else agent.invoke(invoke_kwargs)
     return result["messages"][-1].content

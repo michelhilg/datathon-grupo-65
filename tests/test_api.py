@@ -91,3 +91,34 @@ def test_docs_disponiveis(client):
     """Swagger UI deve estar acessível."""
     response = client.get("/docs")
     assert response.status_code == 200
+
+
+def test_metrics_endpoint_retorna_prometheus(client):
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert b"churn_api_requests_total" in response.content
+
+
+def test_analyze_include_contexts_retorna_lista(client):
+    payload = {"customer_features": CUSTOMER_FIXTURE, "include_contexts": True}
+    response = client.post("/analyze", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "contexts" in data
+    # contexts pode ser lista vazia ou lista de strings (agente mockado não dispara RAG real)
+    assert data["contexts"] is not None
+    assert isinstance(data["contexts"], list)
+
+
+def test_analyze_sem_include_contexts_omite_campo(client):
+    response = client.post("/analyze", json={"customer_features": CUSTOMER_FIXTURE})
+    data = response.json()
+    assert data.get("contexts") is None
+
+
+def test_drift_report_retorna_insufficient_data(client):
+    response = client.post("/drift-report")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] in ("insufficient_data", "ok", "error")

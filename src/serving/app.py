@@ -7,6 +7,9 @@ from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response
+from langchain_core.runnables.config import RunnableConfig
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -14,16 +17,23 @@ load_dotenv()
 from src.agent.rag_pipeline import build_index
 from src.agent.react_agent import analyze_customer, create_churn_agent
 from src.agent.tools import build_tools, churn_predictor
+from src.monitoring import (
+    CHURN_PROBABILITY_HISTOGRAM,
+    TOOL_CALL_COUNTER,
+    ContextAccumulatorHandler,
+    DriftDetector,
+    get_langfuse_handler,
+    setup_prometheus_middleware,
+)
 
 logger = logging.getLogger(__name__)
 
-# Estado global da aplicação (inicializado no lifespan)
 _app_state: dict[str, Any] = {}
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Inicializa RAG e agente na subida da aplicação."""
+async def lifespan(_app: FastAPI):
+    """Inicializa RAG, agente, Prometheus middleware e DriftDetector na subida."""
     logger.info("Inicializando knowledge base e agente...")
     collection = build_index()
     tools = build_tools(collection)
@@ -34,6 +44,7 @@ async def lifespan(app: FastAPI):
     )
     _app_state["agent"] = agent
     _app_state["tools"] = tools
+    _app_state["drift_detector"] = DriftDetector(window_size=500)
     logger.info("Agente inicializado com %d tools", len(tools))
     yield
     _app_state.clear()
@@ -42,9 +53,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Churn Retention Assistant",
     description="Agente ReAct para análise de risco de churn e recomendações de retenção.",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
+
+setup_prometheus_middleware(app)
 
 
 CUSTOMER_EXAMPLE = {
@@ -79,6 +92,10 @@ class AnalysisRequest(BaseModel):
         default=None,
         description="Pergunta customizada. Se não informada, usa análise padrão completa.",
     )
+    include_contexts: bool = Field(
+        default=False,
+        description="Inclui chunks RAG recuperados na resposta (útil para avaliação RAGAS).",
+    )
 
 
 class PredictRequest(BaseModel):
@@ -97,6 +114,7 @@ class PredictResponse(BaseModel):
 class AnalysisResponse(BaseModel):
     analysis: str
     customer_id: str | None = None
+    contexts: list[str] | None = None
 
 
 @app.get("/health")
@@ -106,34 +124,43 @@ def health():
     return {"status": "ok" if ready else "initializing", "agent_ready": ready}
 
 
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    """Expõe métricas Prometheus para scraping."""
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
-    """Chama o modelo ML diretamente — sem agente, sem LLM.
-
-    Útil para testar se o modelo está carregado e funcionando corretamente.
-    Retorna probabilidade de churn, predição e nível de risco.
-    """
+    """Chama o modelo ML diretamente — sem agente, sem LLM."""
     customer_json = json.dumps(request.customer_features, ensure_ascii=False)
     try:
         raw = json.loads(churn_predictor.invoke(customer_json))
         if "error" in raw:
             raise HTTPException(status_code=500, detail=raw["error"])
+
+        prob = raw.get("churn_probability", 0.0)
+        CHURN_PROBABILITY_HISTOGRAM.observe(prob)
+        TOOL_CALL_COUNTER.labels(tool_name="churn_predictor", status="success").inc()
+
+        if "drift_detector" in _app_state:
+            _app_state["drift_detector"].record(request.customer_features)
+
         return PredictResponse(**raw)
     except HTTPException:
         raise
     except Exception as exc:
+        TOOL_CALL_COUNTER.labels(tool_name="churn_predictor", status="error").inc()
         logger.error("Erro no /predict: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/analyze", response_model=AnalysisResponse)
 def analyze(request: AnalysisRequest):
-    """Analisa risco de churn e retorna recomendações de retenção.
+    """Analisa risco de churn e retorna recomendações de retenção via agente ReAct.
 
-    Executa o agente ReAct com as 3 tools:
-    - ChurnPredictor: probabilidade e nível de risco
-    - RetentionKnowledge: estratégias baseadas na knowledge base
-    - FeatureImportance: principais fatores de risco do cliente
+    Com include_contexts=True retorna também os chunks RAG recuperados,
+    necessário para avaliação RAGAS.
     """
     if "agent" not in _app_state:
         raise HTTPException(status_code=503, detail="Agente ainda não inicializado.")
@@ -141,13 +168,41 @@ def analyze(request: AnalysisRequest):
     customer_json = json.dumps(request.customer_features, ensure_ascii=False)
     customer_id = str(request.customer_features.get("customerID", ""))
 
+    langfuse_cb = get_langfuse_handler()
+    ctx_cb = ContextAccumulatorHandler()
+    config = RunnableConfig(callbacks=[langfuse_cb, ctx_cb])
+
     try:
         result = analyze_customer(
             agent=_app_state["agent"],
             customer_json=customer_json,
             question=request.question,
+            config=config,
         )
-        return AnalysisResponse(analysis=result, customer_id=customer_id or None)
+
+        TOOL_CALL_COUNTER.labels(tool_name="analyze", status="success").inc()
+
+        if "drift_detector" in _app_state:
+            _app_state["drift_detector"].record(request.customer_features)
+
+        return AnalysisResponse(
+            analysis=result,
+            customer_id=customer_id or None,
+            contexts=ctx_cb.captured_contexts if request.include_contexts else None,
+        )
     except Exception as exc:
+        TOOL_CALL_COUNTER.labels(tool_name="analyze", status="error").inc()
         logger.error("Erro na análise: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/drift-report")
+def drift_report():
+    """Executa detecção de drift Evidently entre dados de referência e predições recentes."""
+    if "drift_detector" not in _app_state:
+        raise HTTPException(status_code=503, detail="Drift detector não inicializado.")
+    try:
+        return _app_state["drift_detector"].run_report()
+    except Exception as exc:
+        logger.error("Erro no drift report: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
