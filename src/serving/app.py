@@ -170,7 +170,12 @@ def analyze(request: AnalysisRequest):
 
     langfuse_cb = get_langfuse_handler()
     ctx_cb = ContextAccumulatorHandler()
-    config = RunnableConfig(callbacks=[langfuse_cb, ctx_cb])
+    
+    callbacks = [ctx_cb]
+    if langfuse_cb:
+        callbacks.append(langfuse_cb)
+        
+    config = RunnableConfig(callbacks=callbacks)
 
     try:
         result = analyze_customer(

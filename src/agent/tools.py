@@ -28,8 +28,33 @@ def _load_best_model():
         raise RuntimeError("Nenhum run encontrado no experimento MLflow.")
 
     run = runs[0]
-    model = mlflow.sklearn.load_model(f"runs:/{run.info.run_id}/model")
-    logger.info("Modelo carregado: run_id=%s, AUC=%.4f", run.info.run_id, run.data.metrics.get("auc", 0))
+    artifact_uri = run.info.artifact_uri
+    
+    # Corrige problema de caminhos absolutos (Mac vs Docker)
+    # Ex: transforma 'file:///Users/.../mlruns/1/...' em './mlruns/1/...'
+    import urllib.parse
+    import os
+    
+    if artifact_uri.startswith("file://"):
+        local_path = urllib.parse.unquote(artifact_uri[7:])
+    else:
+        local_path = artifact_uri
+
+    if "/mlruns/" in local_path:
+        # Extrai tudo a partir de 'mlruns' para garantir caminho relativo
+        relative_path = "mlruns" + local_path.split("/mlruns")[1]
+        model_path = os.path.join(relative_path, "model")
+    else:
+        model_path = f"runs:/{run.info.run_id}/model"
+        
+    # Tenta usar o caminho relativo resolvido, senão cai pro fallback original do MLflow
+    if os.path.exists(model_path):
+        uri_to_load = model_path
+    else:
+        uri_to_load = f"runs:/{run.info.run_id}/model"
+
+    model = mlflow.sklearn.load_model(uri_to_load)
+    logger.info("Modelo carregado: run_id=%s, AUC=%.4f (from %s)", run.info.run_id, run.data.metrics.get("auc", 0), uri_to_load)
     return model
 
 
