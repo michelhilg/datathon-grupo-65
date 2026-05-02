@@ -1,0 +1,155 @@
+"""Tools do agente ReAct — ChurnPredictor, RetentionKnowledge, FeatureImportance."""
+import json
+import logging
+
+import mlflow
+import pandas as pd
+from langchain_core.tools import tool
+
+from src.features.feature_engineering import build_features
+
+logger = logging.getLogger(__name__)
+
+
+def _load_best_model():
+    """Carrega o modelo RF de maior AUC registrado no MLflow."""
+    client = mlflow.tracking.MlflowClient()
+    experiment = client.get_experiment_by_name("Telco_Customer_Churn_Baseline")
+    if experiment is None:
+        raise RuntimeError("Experimento MLflow não encontrado. Execute src/models/train.py primeiro.")
+
+    runs = client.search_runs(
+        experiment_ids=[experiment.experiment_id],
+        filter_string="tags.model_type = 'classification'",
+        order_by=["metrics.auc DESC"],
+        max_results=1,
+    )
+    if not runs:
+        raise RuntimeError("Nenhum run encontrado no experimento MLflow.")
+
+    run = runs[0]
+    model = mlflow.sklearn.load_model(f"runs:/{run.info.run_id}/model")
+    logger.info("Modelo carregado: run_id=%s, AUC=%.4f", run.info.run_id, run.data.metrics.get("auc", 0))
+    return model
+
+
+_model_cache: dict = {}
+
+
+def _get_model():
+    if "model" not in _model_cache:
+        _model_cache["model"] = _load_best_model()
+    return _model_cache["model"]
+
+
+@tool
+def churn_predictor(customer_json: str) -> str:
+    """Prevê probabilidade de churn dado um JSON com features brutas do cliente Telco.
+
+    Args:
+        customer_json: JSON string com colunas brutas (tenure, MonthlyCharges,
+            Contract, InternetService, PaymentMethod, etc.).
+
+    Returns:
+        JSON com churn_probability, prediction e risk_level.
+    """
+    try:
+        raw = json.loads(customer_json)
+        df_raw = pd.DataFrame([raw])
+        df_features = build_features(df_raw)
+
+        model = _get_model()
+        feature_cols = [c for c in df_features.columns if c != "Churn"]
+        X = df_features[feature_cols].astype(float)
+
+        prob = float(model.predict_proba(X)[0][1])
+        prediction = "Churn" if prob >= 0.5 else "No Churn"
+        risk = "Alto" if prob >= 0.7 else ("Médio" if prob >= 0.4 else "Baixo")
+
+        return json.dumps({
+            "churn_probability": round(prob, 4),
+            "prediction": prediction,
+            "risk_level": risk,
+        }, ensure_ascii=False)
+
+    except Exception as exc:
+        logger.error("Erro no churn_predictor: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
+@tool
+def feature_importance(customer_json: str) -> str:
+    """Retorna os 5 principais fatores de risco de churn para um cliente específico.
+
+    Args:
+        customer_json: JSON string com colunas brutas do Telco dataset.
+
+    Returns:
+        JSON com top_5_risk_factors (feature, importance, value).
+    """
+    try:
+        raw = json.loads(customer_json)
+        df_raw = pd.DataFrame([raw])
+        df_features = build_features(df_raw)
+
+        model = _get_model()
+        feature_cols = [c for c in df_features.columns if c != "Churn"]
+        X = df_features[feature_cols].astype(float)
+
+        if not hasattr(model, "feature_importances_"):
+            return json.dumps({"error": "Modelo não suporta feature_importances_"})
+
+        factors = sorted(
+            [
+                {"feature": col, "importance": round(float(imp), 4), "value": round(float(val), 4)}
+                for col, imp, val in zip(feature_cols, model.feature_importances_, X.iloc[0].values)
+            ],
+            key=lambda x: x["importance"],
+            reverse=True,
+        )[:5]
+
+        return json.dumps({"top_5_risk_factors": factors}, ensure_ascii=False)
+
+    except Exception as exc:
+        logger.error("Erro no feature_importance: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
+def make_retention_knowledge_tool(collection):
+    """Factory que injeta a coleção ChromaDB na closure da tool."""
+    from src.agent.rag_pipeline import retrieve
+
+    @tool
+    def retention_knowledge(query: str) -> str:
+        """Busca estratégias de retenção, padrões de churn e recomendações de produto.
+
+        Args:
+            query: Pergunta em linguagem natural sobre retenção de clientes,
+                padrões de churn ou recomendações de serviço.
+
+        Returns:
+            Trechos relevantes da knowledge base com estratégias e benchmarks.
+        """
+        try:
+            return retrieve(query=query, collection=collection)
+        except Exception as exc:
+            logger.error("Erro no retention_knowledge: %s", exc)
+            return f"Erro ao consultar knowledge base: {exc}"
+
+    return retention_knowledge
+
+
+def build_tools(collection) -> list:
+    """Constrói a lista de tools para o agente ReAct.
+
+    Args:
+        collection: Coleção ChromaDB já indexada.
+
+    Returns:
+        Lista com as 3 tools obrigatórias.
+    """
+    return [
+        churn_predictor,
+        retention_knowledge := make_retention_knowledge_tool(collection),
+        feature_importance,
+    ]
