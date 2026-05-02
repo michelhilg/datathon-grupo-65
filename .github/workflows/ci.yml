@@ -46,6 +46,8 @@ jobs:
             --cov-report=xml \
             --cov-fail-under=60 \
             --junitxml=test-results.xml
+        env:
+          OPENAI_API_KEY: "sk-test-dummy-key-for-ci"
 
       - name: Upload test results
         if: always()

@@ -4,17 +4,28 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "chromadb>=1.5.8",
     "dvc>=3.67.1",
+    "fastapi>=0.136.1",
+    "langchain>=1.2.17",
+    "langchain-community>=0.4.1",
+    "langchain-openai>=1.2.1",
     "matplotlib>=3.10.9",
     "mlflow>=2.0.0",
     "numpy>=2.4.4",
+    "onnxruntime>=1.25.1",
+    "optimum>=2.1.0",
     "pandas<3",
+    "python-dotenv>=1.2.2",
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
+    "sentence-transformers>=5.4.1",
+    "uvicorn[standard]>=0.46.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
     "pandera>=0.31.1",

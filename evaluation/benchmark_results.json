@@ -1,0 +1,123 @@
+{
+  "configs": [
+    {
+      "config": {
+        "name": "config_A",
+        "top_k": 3,
+        "temperature": 0.0,
+        "model": "gpt-4o-mini"
+      },
+      "test_cases": [
+        {
+          "id": "high_risk_customer",
+          "description": "Cliente de alto risco (month-to-month, fiber, tenure baixo)",
+          "latency_ms": 13338.8,
+          "response_length": 1979,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n#### 1. Probabilidade de Churn\n- **Probabilidade de Churn**: 83,25%\n- **Predição**: Churn\n- **Nível de Risco**: Alto\n\n#### 2. Principais Fatores de Risco\nInfe",
+          "status": "ok"
+        },
+        {
+          "id": "low_risk_customer",
+          "description": "Cliente de baixo risco (contrato anual, DSL, tenure alto)",
+          "latency_ms": 15231.1,
+          "response_length": 1788,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n#### 1. Probabilidade de Churn\n- **Probabilidade de Churn**: 9,33%\n- **Previsão**: Não Churn\n- **Nível de Risco**: Baixo\n\n#### 2. Principais Fatores de Risco\n",
+          "status": "ok"
+        },
+        {
+          "id": "medium_risk_customer",
+          "description": "Cliente de risco médio (contrato anual, fiber, sem suporte)",
+          "latency_ms": 13744.3,
+          "response_length": 2198,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n#### 1. Probabilidade de Churn\n- **Probabilidade de Churn**: 66,51%\n- **Predição**: Churn\n- **Nível de Risco**: Médio\n\n#### 2. Principais Fatores de Risco\nInf",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "config": {
+        "name": "config_B",
+        "top_k": 5,
+        "temperature": 0.0,
+        "model": "gpt-4o-mini"
+      },
+      "test_cases": [
+        {
+          "id": "high_risk_customer",
+          "description": "Cliente de alto risco (month-to-month, fiber, tenure baixo)",
+          "latency_ms": 16521.2,
+          "response_length": 2663,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n**Dados do Cliente:**\n- Tenure: 2 meses\n- Monthly Charges: R$ 85,00\n- Total Charges: R$ 170,00\n- Contrato: Month-to-month\n- Serviço de Internet: Fiber optic\n-",
+          "status": "ok"
+        },
+        {
+          "id": "low_risk_customer",
+          "description": "Cliente de baixo risco (contrato anual, DSL, tenure alto)",
+          "latency_ms": 13416.3,
+          "response_length": 1879,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n#### 1. Probabilidade de Churn\n- **Probabilidade de Churn**: 9,33%\n- **Previsão**: Não Churn\n- **Nível de Risco**: Baixo\n\n#### 2. Principais Fatores de Risco\n",
+          "status": "ok"
+        },
+        {
+          "id": "medium_risk_customer",
+          "description": "Cliente de risco médio (contrato anual, fiber, sem suporte)",
+          "latency_ms": 16287.5,
+          "response_length": 2139,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n#### 1. Probabilidade de Churn\n- **Probabilidade de Churn**: 66,51%\n- **Predição**: Churn\n- **Nível de Risco**: Médio\n\n#### 2. Principais Fatores de Risco\nInf",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "config": {
+        "name": "config_C",
+        "top_k": 3,
+        "temperature": 0.3,
+        "model": "gpt-4o-mini"
+      },
+      "test_cases": [
+        {
+          "id": "high_risk_customer",
+          "description": "Cliente de alto risco (month-to-month, fiber, tenure baixo)",
+          "latency_ms": 17337.6,
+          "response_length": 2716,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n**Dados do Cliente:**\n- Tenure: 2 meses\n- Monthly Charges: R$ 85,00\n- Total Charges: R$ 170,00\n- Tipo de contrato: Month-to-month\n- Serviço de Internet: Fibra",
+          "status": "ok"
+        },
+        {
+          "id": "low_risk_customer",
+          "description": "Cliente de baixo risco (contrato anual, DSL, tenure alto)",
+          "latency_ms": 15617.2,
+          "response_length": 1185,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n#### 1. Probabilidade de Churn\n- **Probabilidade de Churn**: 9,33%\n- **Previsão**: Não Churn\n- **Nível de Risco**: Baixo\n\n#### 2. Principais Fatores de Risco\n",
+          "status": "ok"
+        },
+        {
+          "id": "medium_risk_customer",
+          "description": "Cliente de risco médio (contrato anual, fiber, sem suporte)",
+          "latency_ms": 14530.3,
+          "response_length": 1794,
+          "response_preview": "### Análise de Risco de Churn do Cliente\n\n**1. Probabilidade de Churn:**\n- **Probabilidade de Churn:** 66,51%\n- **Previsão:** Churn (o cliente está propenso a cancelar o serviço)\n- **Nível de Risco:**",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "config_A": {
+      "avg_latency_ms": 14104.7,
+      "avg_response_length": 1988.3,
+      "success_rate": "3/3"
+    },
+    "config_B": {
+      "avg_latency_ms": 15408.3,
+      "avg_response_length": 2227.0,
+      "success_rate": "3/3"
+    },
+    "config_C": {
+      "avg_latency_ms": 15828.4,
+      "avg_response_length": 1898.3,
+      "success_rate": "3/3"
+    }
+  }
+}
