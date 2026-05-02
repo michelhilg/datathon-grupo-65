@@ -17,6 +17,7 @@ def mock_model():
     model = MagicMock()
     model.predict_proba.return_value = np.array([[0.22, 0.78]])
     model.feature_importances_ = np.array([0.3, 0.2, 0.15, 0.1, 0.08, 0.07, 0.05, 0.03, 0.02])
+    model.feature_names_in_ = np.array(["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9"])
     return model
 
 
@@ -221,4 +222,6 @@ def test_analyze_customer_usa_question_customizada():
 
     assert result == "Resposta customizada."
     call_args = mock_agent.invoke.call_args[0][0]
-    assert call_args["messages"][0].content == "Qual o risco?"
+    prompt_content = call_args["messages"][0].content
+    assert "Qual o risco?" in prompt_content
+    assert json.dumps(CUSTOMER_RAW) in prompt_content
