@@ -1,6 +1,7 @@
 """Tools do agente ReAct — ChurnPredictor, RetentionKnowledge, FeatureImportance."""
 import json
 import logging
+import os
 import urllib.parse
 from pathlib import Path
 
@@ -18,6 +19,18 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 def _load_best_model():
     """Carrega o modelo RF de maior AUC registrado no MLflow."""
+    model_path_env = os.getenv("MODEL_PATH")
+    if model_path_env:
+        model_dir = Path(model_path_env)
+        if not (model_dir / "MLmodel").exists():
+            raise RuntimeError(
+                f"MODEL_PATH={model_path_env} definido mas MLmodel não encontrado. "
+                "Execute: python scripts/export_model.py"
+            )
+        model = mlflow.sklearn.load_model(str(model_dir))
+        logger.info("Modelo carregado de MODEL_PATH=%s", model_path_env)
+        return model
+
     client = mlflow.tracking.MlflowClient()
     experiment = client.get_experiment_by_name("Telco_Customer_Churn_Baseline")
     if experiment is None:

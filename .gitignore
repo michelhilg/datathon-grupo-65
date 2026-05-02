@@ -11,6 +11,7 @@
 # MLflow
 mlruns/
 mlartifacts/
+model/
 
 # Python
 __pycache__/

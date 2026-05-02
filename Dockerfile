@@ -28,8 +28,9 @@ RUN uv sync --no-dev
 # Copia todo o restante do projeto (código, pipeline do dvc, etc)
 COPY . .
 
-# Expõe a porta do mlflow caso queiramos testar a UI pelo container
-EXPOSE 5000
+RUN chmod +x /app/scripts/entrypoint.sh
 
-# Comando default: rodar o pipeline através do DVC
-CMD ["uv", "run", "dvc", "repro"]
+EXPOSE 8000
+
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+CMD ["uv", "run", "uvicorn", "src.serving.app:app", "--host", "0.0.0.0", "--port", "8000"]
