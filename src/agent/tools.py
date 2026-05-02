@@ -1,6 +1,8 @@
 """Tools do agente ReAct — ChurnPredictor, RetentionKnowledge, FeatureImportance."""
 import json
 import logging
+import urllib.parse
+from pathlib import Path
 
 import mlflow
 import pandas as pd
@@ -9,6 +11,9 @@ from langchain_core.tools import tool
 from src.features.feature_engineering import build_features
 
 logger = logging.getLogger(__name__)
+
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _load_best_model():
@@ -28,8 +33,33 @@ def _load_best_model():
         raise RuntimeError("Nenhum run encontrado no experimento MLflow.")
 
     run = runs[0]
-    model = mlflow.sklearn.load_model(f"runs:/{run.info.run_id}/model")
-    logger.info("Modelo carregado: run_id=%s, AUC=%.4f", run.info.run_id, run.data.metrics.get("auc", 0))
+    artifact_uri = run.info.artifact_uri
+
+    if artifact_uri.startswith("file://"):
+        local_path = urllib.parse.unquote(artifact_uri[7:])
+    else:
+        local_path = artifact_uri
+
+    # Resolve caminho absoluto a partir de __file__ — funciona no host e no Docker.
+    # Verifica existência do MLmodel para lidar com duas estruturas possíveis:
+    #   - artifacts/MLmodel        (runs antigas, artifact_path vazio)
+    #   - artifacts/model/MLmodel  (padrão MLflow com log_model(model, "model"))
+    if "/mlruns/" in local_path:
+        relative = "mlruns" + local_path.split("/mlruns")[1]
+        base = _PROJECT_ROOT / relative
+        if (base / "MLmodel").exists():
+            model_path = str(base)
+        elif (base / "model" / "MLmodel").exists():
+            model_path = str(base / "model")
+        else:
+            model_path = None
+    else:
+        model_path = None
+
+    uri_to_load = model_path if model_path else f"runs:/{run.info.run_id}/model"
+
+    model = mlflow.sklearn.load_model(uri_to_load)
+    logger.info("Modelo carregado: run_id=%s, AUC=%.4f (from %s)", run.info.run_id, run.data.metrics.get("auc", 0), uri_to_load)
     return model
 
 

@@ -45,3 +45,6 @@ diretrizes/
 
 # Claude
 .claude/
+
+# Agents
+.agents/
