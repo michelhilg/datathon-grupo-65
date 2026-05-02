@@ -32,11 +32,23 @@ class InputGuardrail:
         r"forget\s+(everything|all|your\s+instructions)",
     ]
 
+    # LLM06 — Sensitive Information Disclosure: bloqueia tentativas de extração de PII
+    PII_EXTRACTION_PATTERNS = [
+        r"\bcpf\b",
+        r"\bcnpj\b",
+        r"\brg\b",
+        r"\bpassport\b",
+        r"\bpassaporte\b",
+        r"(me\s+d[iê]|inform[ae]|mostre?|revele?|liste?|exib[ae])\s+.{0,30}(cpf|cnpj|rg|senha|password|credit.?card|cartão)",
+        r"(qual|o\s+que|me\s+d[iê]).{0,20}(senha|password|token|secret|chave\s+pix)",
+    ]
+
     MAX_INPUT_LENGTH = 4096
 
     def __init__(self, allowed_topics: list[str] | None = None):
         self.allowed_topics = allowed_topics or []
         self._compiled = [re.compile(p, re.IGNORECASE) for p in self.INJECTION_PATTERNS]
+        self._pii_compiled = [re.compile(p, re.IGNORECASE) for p in self.PII_EXTRACTION_PATTERNS]
 
     def validate(self, user_input: str) -> tuple[bool, str]:
         """Valida input do usuário.
@@ -51,6 +63,11 @@ class InputGuardrail:
             if pattern.search(user_input):
                 logger.warning("Prompt injection detectado: %.100s", user_input)
                 return False, "Input bloqueado: padrão suspeito detectado."
+
+        for pattern in self._pii_compiled:
+            if pattern.search(user_input):
+                logger.warning("Tentativa de extração de PII detectada: %.100s", user_input)
+                return False, "Input bloqueado: solicitação de dados pessoais não permitida."
 
         if len(user_input) > self.MAX_INPUT_LENGTH:
             return False, f"Input bloqueado: excede tamanho máximo ({self.MAX_INPUT_LENGTH} chars)."
