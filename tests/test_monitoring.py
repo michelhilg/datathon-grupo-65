@@ -76,34 +76,50 @@ def test_context_accumulator_accumulates_multiple_calls():
 
 
 # ---------------------------------------------------------------------------
-# telemetry.py — LangfuseCallbackHandler
+# telemetry.py — get_langfuse_handler
 # ---------------------------------------------------------------------------
 
-def test_langfuse_handler_disabled_without_keys(monkeypatch):
+def test_get_langfuse_handler_disabled_without_keys(monkeypatch):
     monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
     monkeypatch.delenv("LANGFUSE_SECRET_KEY", raising=False)
-    from src.monitoring.telemetry import LangfuseCallbackHandler
-    handler = LangfuseCallbackHandler()
-    assert handler._enabled is False
+    from src.monitoring.telemetry import get_langfuse_handler
+    handler = get_langfuse_handler()
+    assert handler is None
 
 
-def test_langfuse_handler_disabled_without_package(monkeypatch):
+def test_get_langfuse_handler_disabled_without_package(monkeypatch):
     monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-test")
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-test")
+    monkeypatch.setenv("LANGFUSE_HOST", "http://localhost:3000")
     with patch.dict(sys.modules, {"langfuse": None}):
-        from importlib import reload  # noqa: PLC0415
-        import src.monitoring.telemetry as tel  # noqa: PLC0415
-        reload(tel)
-        handler = tel.LangfuseCallbackHandler()
-        assert handler._enabled is False
+        from src.monitoring.telemetry import get_langfuse_handler
+        handler = get_langfuse_handler()
+        assert handler is None
 
 
-def test_get_langfuse_handler_returns_new_instance():
-    from src.monitoring.telemetry import get_langfuse_handler, LangfuseCallbackHandler
-    h1 = get_langfuse_handler()
-    h2 = get_langfuse_handler()
-    assert h1 is not h2
-    assert isinstance(h1, LangfuseCallbackHandler)
+def test_get_langfuse_handler_returns_new_instance(monkeypatch):
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-test")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-test")
+    monkeypatch.setenv("LANGFUSE_HOST", "http://localhost:3000")
+    
+    mock_langfuse_module = MagicMock()
+    mock_langchain_module = MagicMock()
+    
+    class DummyCallbackHandler:
+        pass
+
+    mock_langchain_module.CallbackHandler = DummyCallbackHandler
+
+    with patch.dict(sys.modules, {
+        "langfuse": mock_langfuse_module, 
+        "langfuse.langchain": mock_langchain_module
+    }):
+        from src.monitoring.telemetry import get_langfuse_handler
+        h1 = get_langfuse_handler()
+        h2 = get_langfuse_handler()
+        assert h1 is not None
+        assert h1 is not h2
+        assert isinstance(h1, DummyCallbackHandler)
 
 
 # ---------------------------------------------------------------------------
