@@ -5,6 +5,7 @@ from src.monitoring.metrics import (
     CHURN_PROBABILITY_HISTOGRAM,
     REQUEST_COUNT,
     REQUEST_LATENCY,
+    SECURITY_BLOCK_COUNTER,
     TOOL_CALL_COUNTER,
     setup_prometheus_middleware,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "REQUEST_LATENCY",
     "CHURN_PROBABILITY_HISTOGRAM",
     "TOOL_CALL_COUNTER",
+    "SECURITY_BLOCK_COUNTER",
     "get_langfuse_handler",
     "ContextAccumulatorHandler",
     "DriftDetector",
