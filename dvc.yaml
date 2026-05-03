@@ -1,7 +1,79 @@
 stages:
+  prepare_data:
+    cmd: uv run python scripts/prepare_data.py
+    desc: "Aplica feature engineering nos dados brutos e salva como parquet"
+    deps:
+      - scripts/prepare_data.py
+      - src/features/feature_engineering.py
+      - data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+    params:
+      - data.raw_path
+      - data.processed_path
+    outs:
+      - data/processed/features.parquet
+
   train:
     cmd: uv run python src/models/train.py
+    desc: "Treina modelos baseline e loga experimentos no MLflow"
     deps:
       - src/models/train.py
       - src/features/feature_engineering.py
       - data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+    params:
+      - data.raw_path
+      - model.test_size
+      - model.random_state
+      - model.experiment_name
+      - training
+    outs:
+      - training_output.json:
+          cache: false
+
+  evaluate:
+    cmd: uv run python scripts/evaluate_model.py
+    desc: "Valida métricas do melhor modelo contra threshold mínimo de AUC"
+    deps:
+      - scripts/evaluate_model.py
+      - training_output.json
+    params:
+      - model.min_auc_threshold
+      - model.experiment_name
+    outs:
+      - evaluation/model_metrics.json:
+          cache: false
+
+  export_model:
+    cmd: uv run python scripts/export_model.py
+    desc: "Exporta o melhor modelo do MLflow para o diretório model/"
+    deps:
+      - scripts/export_model.py
+      - evaluation/model_metrics.json
+    params:
+      - model.experiment_name
+      - model.export_dir
+    outs:
+      - model:
+          cache: false
+
+  build_index:
+    cmd: uv run python scripts/build_index.py
+    desc: "Reconstrói índice ChromaDB a partir da knowledge base"
+    deps:
+      - scripts/build_index.py
+      - src/agent/rag_pipeline.py
+      - data/knowledge_base
+    params:
+      - rag
+    outs:
+      - chroma_db:
+          cache: false
+
+  generate_dev_data:
+    cmd: uv run python scripts/generate_dev_data.py
+    desc: "Gera dataset sintético para dev/test — isolado do pipeline de produção"
+    deps:
+      - scripts/generate_dev_data.py
+    params:
+      - data.dev_path
+    outs:
+      - data/dev

@@ -11,13 +11,27 @@ Compatível com MLflow 3.x, que salva artefatos em
 mlruns/{exp_id}/models/m-{model_id}/artifacts/ em vez de
 mlruns/{exp_id}/{run_id}/artifacts/.
 """
+import json
 import shutil
 from pathlib import Path
 
 import mlflow
+import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MODEL_EXPORT_DIR = PROJECT_ROOT / "model"
+
+
+def _load_params() -> dict:
+    params_path = PROJECT_ROOT / "params.yaml"
+    if params_path.exists():
+        with open(params_path) as f:
+            return yaml.safe_load(f)
+    return {}
+
+
+def _get_export_dir(params: dict) -> Path:
+    export_dir = params.get("model", {}).get("export_dir", "model")
+    return PROJECT_ROOT / export_dir
 
 
 def _find_model_dir(run_id: str, experiment_id: str) -> Path:
@@ -51,37 +65,52 @@ def _find_model_dir(run_id: str, experiment_id: str) -> Path:
 
 
 def export_best_model() -> None:
-    mlflow.set_tracking_uri(f"sqlite:///{PROJECT_ROOT}/mlflow.db")
-    client = mlflow.tracking.MlflowClient()
+    params = _load_params()
+    export_dir = _get_export_dir(params)
+    experiment_name = params.get("model", {}).get("experiment_name", "Telco_Customer_Churn_Baseline")
 
-    experiment = client.get_experiment_by_name("Telco_Customer_Churn_Baseline")
+    # Se evaluation/model_metrics.json existir (produzido pelo stage evaluate),
+    # usa o run_id validado em vez de re-consultar o MLflow.
+    metrics_path = PROJECT_ROOT / "evaluation" / "model_metrics.json"
+    validated_run_id: str | None = None
+    if metrics_path.exists():
+        metrics = json.loads(metrics_path.read_text())
+        if metrics.get("validation_passed"):
+            validated_run_id = metrics.get("run_id")
+            print(f"Usando run_id validado pelo stage evaluate: {validated_run_id}")
+
+    client = mlflow.tracking.MlflowClient()
+    experiment = client.get_experiment_by_name(experiment_name)
     if experiment is None:
         raise RuntimeError(
-            "Experimento 'Telco_Customer_Churn_Baseline' não encontrado. "
-            "Execute: uv run python -m src.models.train"
+            f"Experimento '{experiment_name}' não encontrado. "
+            "Execute: uv run python src/models/train.py"
         )
 
-    runs = client.search_runs(
-        experiment_ids=[experiment.experiment_id],
-        filter_string="tags.model_type = 'classification'",
-        order_by=["metrics.auc DESC"],
-        max_results=1,
-    )
-    if not runs:
-        raise RuntimeError("Nenhum run com tag model_type='classification' encontrado.")
+    if validated_run_id:
+        run = client.get_run(validated_run_id)
+    else:
+        runs = client.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string="tags.model_type = 'classification'",
+            order_by=["metrics.auc DESC"],
+            max_results=1,
+        )
+        if not runs:
+            raise RuntimeError("Nenhum run com tag model_type='classification' encontrado.")
+        run = runs[0]
 
-    run = runs[0]
     auc = run.data.metrics.get("auc", 0)
     model_src = _find_model_dir(run.info.run_id, run.info.experiment_id)
 
-    if MODEL_EXPORT_DIR.exists():
-        shutil.rmtree(MODEL_EXPORT_DIR)
-    shutil.copytree(model_src, MODEL_EXPORT_DIR)
+    if export_dir.exists():
+        shutil.rmtree(export_dir)
+    shutil.copytree(model_src, export_dir)
 
     print(f"run_id : {run.info.run_id}")
     print(f"AUC    : {auc:.4f}")
     print(f"origem : {model_src}")
-    print(f"destino: {MODEL_EXPORT_DIR}")
+    print(f"destino: {export_dir}")
     print("Modelo exportado. Agora execute: docker compose build && docker compose up")
 
 

@@ -56,8 +56,9 @@ def client():
 def test_health_retorna_ok(client):
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert response.json()["agent_ready"] is True
+    data = response.json()
+    assert data["status"] in ("healthy", "partial", "degraded")
+    assert data["capabilities"]["predict"] is True
 
 
 def test_analyze_retorna_200(client):

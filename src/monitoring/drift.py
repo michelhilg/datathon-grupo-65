@@ -20,14 +20,28 @@ class DriftDetector:
         report = detector.run_report()             # gera relatório Evidently + PSI
     """
 
-    REFERENCE_PATH = Path("data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+    DEFAULT_REFERENCE_PATH = Path("data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv")
     FEATURES = ["tenure", "MonthlyCharges", "TotalCharges"]
     PSI_WARNING = 0.1
     PSI_RETRAIN = 0.2
     MIN_SAMPLES = 30
 
-    def __init__(self, window_size: int = 500) -> None:
+    def __init__(
+        self,
+        window_size: int = 500,
+        reference_path: Path | None = None,
+        psi_warning: float | None = None,
+        psi_retrain: float | None = None,
+        min_samples: int | None = None,
+    ) -> None:
         self._window: deque[dict] = deque(maxlen=window_size)
+        self._reference_path = reference_path or self.DEFAULT_REFERENCE_PATH
+        if psi_warning is not None:
+            self.PSI_WARNING = psi_warning
+        if psi_retrain is not None:
+            self.PSI_RETRAIN = psi_retrain
+        if min_samples is not None:
+            self.MIN_SAMPLES = min_samples
         self._reference_df: pd.DataFrame | None = None
 
     def record(self, customer_features: dict) -> None:
@@ -48,10 +62,10 @@ class DriftDetector:
         if self._reference_df is not None:
             return self._reference_df
 
-        if not self.REFERENCE_PATH.exists():
-            raise FileNotFoundError(f"Dados de referência não encontrados: {self.REFERENCE_PATH}")
+        if not self._reference_path.exists():
+            raise FileNotFoundError(f"Dados de referência não encontrados: {self._reference_path}")
 
-        df = pd.read_csv(self.REFERENCE_PATH)
+        df = pd.read_csv(self._reference_path)
         df["TotalCharges"] = pd.to_numeric(df["TotalCharges"].str.strip().replace("", "0"), errors="coerce").fillna(0.0)
         self._reference_df = df[self.FEATURES].copy()
         return self._reference_df

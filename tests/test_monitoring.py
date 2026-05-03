@@ -169,11 +169,10 @@ def test_drift_detector_run_report_insufficient_data():
     assert result["n_current_samples"] == 5
 
 
-def test_drift_detector_run_report_missing_reference(tmp_path, monkeypatch):
+def test_drift_detector_run_report_missing_reference(tmp_path):
     from src.monitoring.drift import DriftDetector
-    detector = DriftDetector()
-    # Aponta REFERENCE_PATH para arquivo inexistente
-    monkeypatch.setattr(DriftDetector, "REFERENCE_PATH", tmp_path / "nonexistent.csv")
+    # Passa reference_path inexistente via construtor (não mais via class attribute)
+    detector = DriftDetector(reference_path=tmp_path / "nonexistent.csv")
     for _ in range(35):
         detector.record({"tenure": 5, "MonthlyCharges": 50.0, "TotalCharges": "250.00"})
     result = detector.run_report()

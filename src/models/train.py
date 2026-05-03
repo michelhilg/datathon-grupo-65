@@ -1,10 +1,13 @@
 """Pipeline de treinamento com MLflow tracking padronizado."""
+import json
 import os
 import sys
 import logging
+from pathlib import Path
 
 import mlflow
 import pandas as pd
+import yaml
 from sklearn.metrics import (
     f1_score,
     precision_score,
@@ -23,6 +26,15 @@ logger = logging.getLogger(__name__)
 # Adicionando a raiz do projeto no PYTHONPATH para importar o pacote src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from src.features.feature_engineering import build_features
+
+
+def _load_params() -> dict:
+    """Carrega params.yaml com fallback para defaults hardcoded."""
+    params_path = Path(__file__).parents[2] / "params.yaml"
+    if params_path.exists():
+        with open(params_path) as f:
+            return yaml.safe_load(f)
+    return {}
 
 def load_data_and_features(filepath: str = "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv") -> pd.DataFrame:
     """Carrega dados brutos e aplica build_features."""
@@ -108,40 +120,80 @@ def train_and_log(
         return run.info.run_id
 
 if __name__ == "__main__":
-    # Configura o experimento
-    mlflow.set_experiment("Telco_Customer_Churn_Baseline")
-    
+    p = _load_params()
+    model_cfg = p.get("model", {})
+    training_cfg = p.get("training", {})
+    data_cfg = p.get("data", {})
+
+    experiment_name = model_cfg.get("experiment_name", "Telco_Customer_Churn_Baseline")
+    test_size = model_cfg.get("test_size", 0.2)
+    random_state = model_cfg.get("random_state", 42)
+    raw_path = data_cfg.get("raw_path", "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+
+    lr_cfg = training_cfg.get("logistic_regression", {})
+    rf_cfg = training_cfg.get("random_forest", {})
+
+    mlflow.set_experiment(experiment_name)
+
     logger.info("Carregando e processando os dados...")
-    df_processed = load_data_and_features()
-    
+    df_processed = load_data_and_features(filepath=raw_path)
+
     logger.info("Iniciando treinamento dos modelos baseline...")
-    
-    # --- Modelo 1: Regressão Logística ---
+
     lr_params = {
-        "class_weight": "balanced",
-        "random_state": 42,
-        "max_iter": 1000
+        "class_weight": lr_cfg.get("class_weight", "balanced"),
+        "random_state": lr_cfg.get("random_state", random_state),
+        "max_iter": lr_cfg.get("max_iter", 1000),
     }
     run_id_lr = train_and_log(
         df=df_processed,
         target_col="Churn",
         model_name="Logistic_Regression",
         model_class=LogisticRegression,
-        model_params=lr_params
+        model_params=lr_params,
+        test_size=test_size,
+        random_state=random_state,
     )
-    
-    # --- Modelo 2: Random Forest ---
+
     rf_params = {
-        "class_weight": "balanced",
-        "random_state": 42,
-        "n_estimators": 100
+        "class_weight": rf_cfg.get("class_weight", "balanced"),
+        "random_state": rf_cfg.get("random_state", random_state),
+        "n_estimators": rf_cfg.get("n_estimators", 100),
     }
     run_id_rf = train_and_log(
         df=df_processed,
         target_col="Churn",
         model_name="Random_Forest",
         model_class=RandomForestClassifier,
-        model_params=rf_params
+        model_params=rf_params,
+        test_size=test_size,
+        random_state=random_state,
     )
-    
+
+    # Determina o melhor run por AUC e persiste como artefato do stage DVC
+    client = mlflow.tracking.MlflowClient()
+    all_runs = []
+    for run_id, name in [(run_id_lr, "Logistic_Regression"), (run_id_rf, "Random_Forest")]:
+        run = client.get_run(run_id)
+        all_runs.append({
+            "name": name,
+            "run_id": run_id,
+            "auc": round(run.data.metrics.get("auc", 0.0), 4),
+            "f1": round(run.data.metrics.get("f1", 0.0), 4),
+        })
+
+    best = max(all_runs, key=lambda r: r["auc"])
+    output = {
+        "experiment_name": experiment_name,
+        "best_run_id": best["run_id"],
+        "best_model": best["name"],
+        "best_auc": best["auc"],
+        "best_f1": best["f1"],
+        "models": all_runs,
+    }
+    Path("training_output.json").write_text(json.dumps(output, indent=2))
+    logger.info(
+        "Melhor modelo: %s — AUC=%.4f, F1=%.4f",
+        best["name"], best["auc"], best["f1"],
+    )
     logger.info("Todos os treinamentos concluídos com sucesso!")
