@@ -3,8 +3,10 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
+import yaml
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
@@ -36,36 +38,103 @@ from src.monitoring import (
     setup_prometheus_middleware,
 )
 from src.security import InputGuardrail, OutputGuardrail
+from src.serving.health import ComponentHealth, overall_status
 
 logger = logging.getLogger(__name__)
+
+_ALLOWED_TOPICS = [
+    "churn", "retenção", "retention", "cliente", "customer",
+    "contrato", "contract", "serviço", "service", "telecom",
+    "internet", "pagamento", "payment", "cancelamento", "cancel",
+    "plano", "plan", "fidelidade", "desconto", "upgrade",
+]
 
 _app_state: dict[str, Any] = {}
 
 
+def _load_params() -> dict:
+    params_path = Path("params.yaml")
+    if params_path.exists():
+        with open(params_path) as f:
+            return yaml.safe_load(f)
+    return {}
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Inicializa RAG, agente, Prometheus middleware e DriftDetector na subida."""
-    logger.info("Inicializando knowledge base e agente...")
-    collection = build_index()
-    tools = build_tools(collection)
-    agent = create_churn_agent(
-        tools=tools,
-        model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        temperature=float(os.getenv("AGENT_TEMPERATURE", "0.0")),
-    )
-    _app_state["agent"] = agent
-    _app_state["tools"] = tools
-    _app_state["drift_detector"] = DriftDetector(window_size=500)
-    _app_state["input_guardrail"] = InputGuardrail(
-        allowed_topics=[
-            "churn", "retenção", "retention", "cliente", "customer",
-            "contrato", "contract", "serviço", "service", "telecom",
-            "internet", "pagamento", "payment", "cancelamento", "cancel",
-            "plano", "plan", "fidelidade", "desconto", "upgrade",
-        ]
-    )
-    _app_state["output_guardrail"] = OutputGuardrail()
-    logger.info("Agente inicializado com %d tools", len(tools))
+    """Inicializa cada subsistema de forma isolada — falha em um não derruba os outros."""
+    health: dict[str, ComponentHealth] = {}
+    params = _load_params()
+    drift_cfg = params.get("drift", {})
+
+    # --- RAG index ---
+    rag_health = ComponentHealth("rag")
+    health["rag"] = rag_health
+    collection = None
+    try:
+        collection = build_index()
+        rag_health.set_ready()
+        logger.info("RAG index carregado com sucesso")
+    except Exception as exc:
+        rag_health.set_failed(str(exc))
+        logger.error("RAG index falhou na inicialização: %s", exc)
+
+    # --- Agent (depende do RAG) ---
+    agent_health = ComponentHealth("agent")
+    health["agent"] = agent_health
+    if collection is not None:
+        try:
+            tools = build_tools(collection)
+            agent = create_churn_agent(
+                tools=tools,
+                model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                temperature=float(os.getenv("AGENT_TEMPERATURE", "0.0")),
+            )
+            _app_state["agent"] = agent
+            _app_state["tools"] = tools
+            agent_health.set_ready()
+            logger.info("Agente inicializado com %d tools", len(tools))
+        except Exception as exc:
+            agent_health.set_failed(str(exc))
+            logger.error("Agente falhou na inicialização: %s", exc)
+    else:
+        agent_health.set_degraded("RAG index indisponível — /analyze desativado")
+
+    # --- DriftDetector ---
+    drift_health = ComponentHealth("drift")
+    health["drift"] = drift_health
+    try:
+        ref_path = Path(drift_cfg.get("reference_path", DriftDetector.DEFAULT_REFERENCE_PATH))
+        _app_state["drift_detector"] = DriftDetector(
+            window_size=drift_cfg.get("window_size", 500),
+            reference_path=ref_path,
+            psi_warning=drift_cfg.get("psi_warning"),
+            psi_retrain=drift_cfg.get("psi_retrain"),
+            min_samples=drift_cfg.get("min_samples"),
+        )
+        drift_health.set_ready()
+    except Exception as exc:
+        drift_health.set_failed(str(exc))
+        logger.error("DriftDetector falhou na inicialização: %s", exc)
+
+    # --- Guardrails ---
+    guardrails_health = ComponentHealth("guardrails")
+    health["guardrails"] = guardrails_health
+    try:
+        _app_state["input_guardrail"] = InputGuardrail(allowed_topics=_ALLOWED_TOPICS)
+        _app_state["output_guardrail"] = OutputGuardrail()
+        guardrails_health.set_ready()
+    except Exception as exc:
+        guardrails_health.set_degraded(str(exc))
+        logger.warning("Guardrails degradados: %s", exc)
+        # Cria guardrails mínimos mesmo em caso de falha parcial
+        if "input_guardrail" not in _app_state:
+            _app_state["input_guardrail"] = InputGuardrail(allowed_topics=_ALLOWED_TOPICS)
+        if "output_guardrail" not in _app_state:
+            _app_state["output_guardrail"] = OutputGuardrail()
+
+    _app_state["health"] = health
+    logger.info("Startup concluído — status: %s", overall_status(health))
     yield
     _app_state.clear()
 
@@ -140,14 +209,29 @@ class AnalysisResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    """Verifica se a aplicação está pronta para receber requisições."""
+    """Retorna status granular por componente — degraded não significa downtime total."""
     from src.features.feature_store import get_feature_store
-    ready = "agent" in _app_state
+
+    components = {
+        name: h.to_dict()
+        for name, h in _app_state.get("health", {}).items()
+    }
     feature_store_ok = get_feature_store().ping()
+    components["feature_store"] = {
+        "status": "ready" if feature_store_ok else "degraded"
+    }
+
+    comp_health = _app_state.get("health", {})
+    status = overall_status(comp_health) if comp_health else "initializing"
+
     return {
-        "status": "ok" if ready else "initializing",
-        "agent_ready": ready,
-        "feature_store": "connected" if feature_store_ok else "unavailable",
+        "status": status,
+        "components": components,
+        "capabilities": {
+            "predict": True,
+            "analyze": "agent" in _app_state,
+            "drift_report": "drift_detector" in _app_state,
+        },
     }
 
 

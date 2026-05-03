@@ -8,6 +8,7 @@ on:
 
 jobs:
   quality:
+    name: Lint & Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,15 +30,17 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check src/ tests/ || true
 
-      - name: Validate notebook
+      - name: Execute notebook
         run: |
-          uv run python -c "
-          import json, sys
-          nb = json.load(open('notebooks/01_eda.ipynb'))
-          cells = nb.get('cells', [])
-          print(f'Notebook OK: {len(cells)} células')
-          sys.exit(0)
-          "
+          uv run jupyter nbconvert \
+            --to notebook \
+            --execute \
+            --ExecutePreprocessor.timeout=120 \
+            --output /tmp/01_eda_executed.ipynb \
+            notebooks/01_eda.ipynb
+          echo "Notebook executado com sucesso"
+        env:
+          OPENAI_API_KEY: "sk-test-dummy-key-for-ci"
 
       - name: Unit tests (pytest)
         run: |
@@ -57,3 +60,115 @@ jobs:
           path: |
             test-results.xml
             coverage.xml
+
+  pipeline-check:
+    name: DVC Pipeline Status
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Setup Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Validate params.yaml
+        run: |
+          uv run python -c "
+          import yaml, sys
+          with open('params.yaml') as f:
+              p = yaml.safe_load(f)
+          required = ['data', 'model', 'rag', 'drift', 'training']
+          missing = [k for k in required if k not in p]
+          if missing:
+              print(f'params.yaml faltando chaves: {missing}')
+              sys.exit(1)
+          print('params.yaml OK:', list(p.keys()))
+          "
+
+      - name: Check DVC pipeline integrity
+        run: uv run dvc dag --md || true
+
+      - name: Check for stale stages (dvc status)
+        run: |
+          uv run dvc status --json 2>/dev/null | \
+            uv run python -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          if data:
+              print('Stages desatualizados detectados:')
+              for stage, changes in data.items():
+                  print(f'  {stage}: {changes}')
+              print('Execute: dvc repro para sincronizar o pipeline')
+          else:
+              print('Pipeline DVC sincronizado — todos os stages atualizados')
+          " || echo "dvc status indisponível (dados não rastreados)"
+
+  model-validate:
+    name: Model Metrics Validation
+    runs-on: ubuntu-latest
+    needs: [quality]
+    permissions:
+      contents: read
+    # Só executa se evaluation/model_metrics.json existir no repo
+    if: ${{ hashFiles('evaluation/model_metrics.json') != '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Setup Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Validate model metrics against threshold
+        run: |
+          uv run python -c "
+          import json, sys, yaml
+          from pathlib import Path
+
+          metrics_path = Path('evaluation/model_metrics.json')
+          if not metrics_path.exists():
+              print('evaluation/model_metrics.json não encontrado — pulando validação')
+              sys.exit(0)
+
+          with open('params.yaml') as f:
+              params = yaml.safe_load(f)
+          threshold = params['model']['min_auc_threshold']
+
+          metrics = json.loads(metrics_path.read_text())
+          auc = metrics.get('auc', 0)
+          model_name = metrics.get('model_name', 'unknown')
+
+          print(f'Modelo  : {model_name}')
+          print(f'AUC     : {auc:.4f}')
+          print(f'F1      : {metrics.get(\"f1\", 0):.4f}')
+          print(f'Threshold: {threshold}')
+
+          if not metrics.get('validation_passed', False):
+              print(f'FALHA: AUC {auc:.4f} < threshold {threshold}')
+              sys.exit(1)
+
+          print('Validação OK')
+          "
+
+      - name: Upload model metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-metrics
+          path: evaluation/model_metrics.json

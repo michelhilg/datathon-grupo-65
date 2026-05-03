@@ -2,6 +2,8 @@
 import pandas as pd
 import pytest
 
+from tests.fixtures.synthetic_data import generate_synthetic_telco
+
 
 @pytest.fixture
 def telco_raw() -> pd.DataFrame:
@@ -12,9 +14,6 @@ def telco_raw() -> pd.DataFrame:
     - Todos os valores de Contract, PaymentMethod e InternetService
     - 8 churners e 8 não-churners (balanceado para estratificação no treino)
     """
-    internet_svc = ["Yes", "No", "No internet service"]
-    phone_svc = ["Yes", "No", "No phone service"]
-
     return pd.DataFrame({
         "customerID": [f"CUST-{i:04d}" for i in range(16)],
         "gender": [
@@ -107,3 +106,13 @@ def telco_raw() -> pd.DataFrame:
             "No", "Yes", "No", "Yes", "No", "Yes", "No", "Yes",
         ],
     })
+
+
+@pytest.fixture
+def telco_synthetic_large() -> pd.DataFrame:
+    """Dataset sintético de 500 clientes para testes que precisam de volume.
+
+    Gerado deterministicamente via seed=42 — resultados estáveis entre runs.
+    Nunca lê data/raw/ — zero dependência de dados reais em testes.
+    """
+    return generate_synthetic_telco(n_rows=500, seed=42)

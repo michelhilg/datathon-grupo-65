@@ -1,0 +1,35 @@
+data:
+  raw_path: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+  processed_path: data/processed/features.parquet
+  knowledge_base_dir: data/knowledge_base
+  dev_path: data/dev/synthetic_telco.csv
+
+model:
+  experiment_name: Telco_Customer_Churn_Baseline
+  test_size: 0.2
+  random_state: 42
+  min_auc_threshold: 0.75
+  export_dir: model
+
+rag:
+  model_name: sentence-transformers/multi-qa-MiniLM-L6-cos-v1
+  chunk_size: 150
+  chunk_overlap: 30
+  persist_dir: chroma_db
+
+drift:
+  reference_path: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+  window_size: 500
+  psi_warning: 0.1
+  psi_retrain: 0.2
+  min_samples: 30
+
+training:
+  logistic_regression:
+    class_weight: balanced
+    random_state: 42
+    max_iter: 1000
+  random_forest:
+    class_weight: balanced
+    random_state: 42
+    n_estimators: 100
