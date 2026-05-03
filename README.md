@@ -1,4 +1,4 @@
-# Datathon Grupo 65 — Telco Churn Intelligence Platform
+# Datathon MLET6 - Grupo 65 — Telco Churn Intelligence Platform
 
 > **FIAP Pós-Tech MLET · Fase 05 — Deploy Avançado de IA Generativa**
 
@@ -13,8 +13,10 @@ Plataforma MLOps completa para predição de churn e recomendação de retençã
 
 ## Sumário
 
+- [Contexto e Solução](#contexto-e-solução)
 - [Arquitetura](#arquitetura)
 - [Maturidade MLOps](#maturidade-mlops)
+- [Como esse Projeto Resolve os Gaps Comuns em Plataformas de ML](#como-esse-projeto-resolve-os-gaps-comuns-em-plataformas-de-ml)
 - [Pré-requisitos](#pré-requisitos)
 - [Configuração do ambiente](#configuração-do-ambiente)
 - [Quickstart](#quickstart)
@@ -31,6 +33,16 @@ Plataforma MLOps completa para predição de churn e recomendação de retençã
 - [Documentação de Governança](#documentação-de-governança)
 - [Referências](#referências)
 - [Licença](#licença)
+
+---
+
+## Contexto e Solução
+
+Operadoras de telecomunicações enfrentam taxas de churn que podem superar 25% ao ano. Identificar clientes em risco com antecedência suficiente para agir é o diferencial entre uma campanha de retenção eficaz e a perda da receita.
+
+Este projeto entrega uma plataforma end-to-end que combina duas camadas complementares: um modelo de classificação clássico para predição de risco com baixa latência, e um agente de linguagem que traduz o risco em recomendações de retenção acionáveis — contextualizado por uma base de conhecimento sobre padrões de churn e estratégias da indústria.
+
+A solução foi construída seguindo práticas de MLOps nível 2, com rastreabilidade de experimentos, detecção de drift, guardrails de segurança e conformidade LGPD desde a concepção.
 
 ---
 
@@ -98,7 +110,7 @@ Alinhado ao **Microsoft MLOps Maturity Model Nível 2** em todas as dimensões c
 
 ## Como esse Projeto Resolve os Gaps Comuns em Plataformas de ML
 
-Os gaps abaixo são derivados de avaliações reais de maturidade MLOps descritos em [diretrizes/datathon-guide.md](diretrizes/datathon-guide.md). A tabela mostra como cada um é endereçado neste repositório:
+Os gaps abaixo são derivados de avaliações reais de maturidade MLOps descritos na proposta do Datathon FIAP. A tabela mostra como cada um é endereçado neste repositório:
 
 | Gap | Anti-padrão | Solução implementada |
 |---|---|---|
@@ -109,7 +121,7 @@ Os gaps abaixo são derivados de avaliações reais de maturidade MLOps descrito
 | **GAP 05** — Sem governança de versionamento | MLflow com metadata inconsistente ou ausente | Tags obrigatórias (`model_type`, `framework`, `owner`, `phase`) em todo run; Model Registry com lineage; champion-challenger antes de qualquer promoção |
 | **GAP 06** — Sem detecção de drift | Modelo esquecido após deploy; degradação silenciosa | Evidently PSI com thresholds configuráveis (`warning > 0.1`, `retrain > 0.2`) em [src/monitoring/drift.py](src/monitoring/drift.py); endpoint `POST /drift-report` expõe o relatório |
 | **GAP 07** — Ausência de retraining automatizado | Retraining manual e ad-hoc | Workflow `retraining.yml` agendado por cron; avaliação champion-challenger com `delta_auc ≥ 0.005` obrigatório para promoção |
-| **GAP 08** — Ambiente de dev sem dados | Testes acontecem direto em produção | DVC versiona os dados brutos; dados sintéticos gerados em [tests/fixtures/synthetic_data.py](tests/fixtures/synthetic_data.py); CI roda com 200 registros sintéticos sem depender de dados reais |
+| **GAP 08** — Ambiente de dev sem dados | Testes acontecem direto em produção | DVC versiona os dados brutos garantindo reprodutibilidade; o CI executa o pipeline completo sem depender de dados de produção |
 | **GAP 09** — Skills gap em engenharia de software | Sem type hints, sem testes, secrets no código | Type hints em todas as funções públicas; `ruff` como linter no CI; `pyproject.toml` com dependências gerenciadas; logging estruturado; secrets exclusivamente via `.env` |
 
 ---
