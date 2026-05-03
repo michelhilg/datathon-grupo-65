@@ -30,6 +30,7 @@ Plataforma MLOps completa para predição de churn e recomendação de retençã
 - [CI/CD](#cicd)
 - [Documentação de Governança](#documentação-de-governança)
 - [Referências](#referências)
+- [Licença](#licença)
 
 ---
 
@@ -92,6 +93,24 @@ Alinhado ao **Microsoft MLOps Maturity Model Nível 2** em todas as dimensões c
 | Monitoring | Prometheus + Grafana + Langfuse + Evidently (PSI) |
 | Data Management | DVC para versionamento, dados sintéticos em dev/CI |
 | Feature Management | Redis feature store com upsert incremental e TTL |
+
+---
+
+## Como esse Projeto Resolve os Gaps Comuns em Plataformas de ML
+
+Os gaps abaixo são derivados de avaliações reais de maturidade MLOps descritos em [diretrizes/datathon-guide.md](diretrizes/datathon-guide.md). A tabela mostra como cada um é endereçado neste repositório:
+
+| Gap | Anti-padrão | Solução implementada |
+|---|---|---|
+| **GAP 01** — Ausência de monitoramento | Modelo deployado sem nenhuma verificação | Prometheus + Grafana para métricas operacionais; Langfuse para qualidade LLM; Evidently para drift de features e predições; alertas configurados em [configs/alert.rules.yml](configs/alert.rules.yml) |
+| **GAP 02** — Notebook como SPOF | Um único notebook dispara todo o pipeline de produção | Cada etapa é um script isolado (`prepare_data.py`, `train.py`, `export_model.py`, `build_index.py`); pipeline declarativo via DVC; deploy via CI/CD — nenhum notebook em path crítico |
+| **GAP 03** — Feature store destrutivo (full-flush) | FLUSHALL + bulk load cria janela de store vazio | Redis com upsert incremental (`HSET` + TTL) em [src/features/feature_store.py](src/features/feature_store.py) — o store nunca fica vazio durante atualizações |
+| **GAP 04** — Cobertura de testes próxima a zero | Quality gates triviais; ausência de pytest | 10 módulos de teste cobrindo features, modelo, agente, API, guardrails, monitoring, champion-challenger e avaliação; gate de ≥ 60% no CI via `--cov-fail-under=60` |
+| **GAP 05** — Sem governança de versionamento | MLflow com metadata inconsistente ou ausente | Tags obrigatórias (`model_type`, `framework`, `owner`, `phase`) em todo run; Model Registry com lineage; champion-challenger antes de qualquer promoção |
+| **GAP 06** — Sem detecção de drift | Modelo esquecido após deploy; degradação silenciosa | Evidently PSI com thresholds configuráveis (`warning > 0.1`, `retrain > 0.2`) em [src/monitoring/drift.py](src/monitoring/drift.py); endpoint `POST /drift-report` expõe o relatório |
+| **GAP 07** — Ausência de retraining automatizado | Retraining manual e ad-hoc | Workflow `retraining.yml` agendado por cron; avaliação champion-challenger com `delta_auc ≥ 0.005` obrigatório para promoção |
+| **GAP 08** — Ambiente de dev sem dados | Testes acontecem direto em produção | DVC versiona os dados brutos; dados sintéticos gerados em [tests/fixtures/synthetic_data.py](tests/fixtures/synthetic_data.py); CI roda com 200 registros sintéticos sem depender de dados reais |
+| **GAP 09** — Skills gap em engenharia de software | Sem type hints, sem testes, secrets no código | Type hints em todas as funções públicas; `ruff` como linter no CI; `pyproject.toml` com dependências gerenciadas; logging estruturado; secrets exclusivamente via `.env` |
 
 ---
 
@@ -575,17 +594,29 @@ analyze_customer                          (trace raiz)
 ## Testes
 
 ```bash
-# Executar suite completa com cobertura
+# Suite completa com relatório de cobertura
 uv run pytest tests/ -x --cov=src --cov-fail-under=60
 
-# Por módulo
-uv run pytest tests/test_features.py    # schema contracts (pandera)
-uv run pytest tests/test_api.py         # integração FastAPI (TestClient)
-uv run pytest tests/test_guardrails.py  # segurança
-uv run pytest tests/test_agent.py       # agente ReAct
+# Módulo específico
+uv run pytest tests/test_features.py -v
 ```
 
-O CI bloqueia merge se cobertura cair abaixo de 60%.
+A suite cobre 10 módulos:
+
+| Arquivo | O que testa |
+|---|---|
+| [tests/test_features.py](tests/test_features.py) | Schema contracts via pandera, ausência de nulls, preservação de linhas após feature engineering |
+| [tests/test_models.py](tests/test_models.py) | Treinamento do modelo, métricas dentro de range esperado, determinismo de predições |
+| [tests/test_feature_store.py](tests/test_feature_store.py) | Upsert incremental no Redis, TTL, fallback graceful quando Redis indisponível |
+| [tests/test_agent.py](tests/test_agent.py) | Loop ReAct, invocação das 3 tools, formato da resposta final |
+| [tests/test_api.py](tests/test_api.py) | Endpoints `/predict`, `/analyze`, `/health`, `/drift-report` via FastAPI TestClient |
+| [tests/test_guardrails.py](tests/test_guardrails.py) | Detecção de prompt injection, bloqueio por tamanho, remoção de PII no output |
+| [tests/test_monitoring.py](tests/test_monitoring.py) | Registro de métricas Prometheus, cálculo de PSI, thresholds de drift |
+| [tests/test_evaluation.py](tests/test_evaluation.py) | Pipeline RAGAS, LLM-as-judge, formato dos resultados de avaliação |
+| [tests/test_champion_challenger.py](tests/test_champion_challenger.py) | Lógica de comparação champion vs. challenger, gate `delta_auc ≥ 0.005` |
+| [tests/conftest.py](tests/conftest.py) | Fixtures compartilhados — dados sintéticos, clientes mock, stubs de dependências |
+
+O CI bloqueia merge se a cobertura cair abaixo de 60%.
 
 ---
 
@@ -627,3 +658,9 @@ Variável de ambiente necessária no repositório: `OPENAI_API_KEY` (como secret
 4. Microsoft (2024). *MLOps Maturity Model*. Azure ML Documentation.
 5. OWASP (2025). *OWASP Top 10 for Large Language Model Applications*. https://owasp.org/www-project-top-10-for-large-language-model-applications/
 6. Brasil (2018). *Lei nº 13.709/2018 (LGPD)* — Proteção de dados pessoais.
+
+---
+
+## Licença
+
+Este projeto está licenciado sob a [MIT License](LICENSE) — uso, modificação e distribuição livres, inclusive para fins comerciais, desde que mantida a atribuição de autoria.
