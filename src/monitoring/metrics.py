@@ -3,7 +3,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -24,6 +24,14 @@ def _make_counter(name: str, doc: str, labels: list[str]) -> Counter:
 def _make_histogram(name: str, doc: str, labels: list[str], buckets) -> Histogram:
     try:
         return Histogram(name, doc, labels, buckets=buckets)
+    except ValueError:
+        from prometheus_client import REGISTRY  # noqa: PLC0415
+        return REGISTRY._names_to_collectors.get(name)  # type: ignore[return-value]
+
+
+def _make_gauge(name: str, doc: str, labels: list[str]) -> Gauge:
+    try:
+        return Gauge(name, doc, labels)
     except ValueError:
         from prometheus_client import REGISTRY  # noqa: PLC0415
         return REGISTRY._names_to_collectors.get(name)  # type: ignore[return-value]
@@ -59,6 +67,18 @@ SECURITY_BLOCK_COUNTER = _make_counter(
     "security_blocks_total",
     "Total de requisições bloqueadas pelos guardrails de segurança.",
     ["block_type"],
+)
+
+DRIFT_PSI_GAUGE = _make_gauge(
+    "drift_psi",
+    "Population Stability Index (PSI) por feature monitorada.",
+    ["feature"],
+)
+
+DRIFT_RETRAIN_GAUGE = _make_gauge(
+    "drift_retrain_recommended",
+    "1 se alguma feature ultrapassou o threshold de retrain (PSI > 0.2), 0 caso contrário.",
+    [],
 )
 
 

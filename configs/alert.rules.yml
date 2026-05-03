@@ -1,0 +1,29 @@
+groups:
+  - name: drift_alerts
+    rules:
+      - alert: DriftWarning
+        expr: drift_psi > 0.1
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Drift warning na feature {{ $labels.feature }}"
+          description: "PSI={{ $value | humanize }} ultrapassou o threshold de warning (0.1)."
+
+      - alert: DriftRetrain
+        expr: drift_psi > 0.2
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Retrain recomendado — feature {{ $labels.feature }}"
+          description: "PSI={{ $value | humanize }} ultrapassou o threshold de retrain (0.2). Retreinamento do modelo recomendado."
+
+      - alert: DriftRetainRecommended
+        expr: drift_retrain_recommended == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Modelo requer retreinamento"
+          description: "Pelo menos uma feature com drift severo (PSI > 0.2). Verifique o relatório em /drift-report."

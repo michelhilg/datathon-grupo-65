@@ -126,12 +126,12 @@ class DriftDetector:
         evidently_available = False
         try:
             from evidently import Report  # noqa: PLC0415
-            from evidently.metric_preset import DataDriftPreset  # noqa: PLC0415
+            from evidently.presets import DataDriftPreset  # noqa: PLC0415
 
             report = Report(metrics=[DataDriftPreset()])
-            report.run(reference_data=ref_df, current_data=current_df)
+            snapshot = report.run(current_data=current_df, reference_data=ref_df)
             DRIFT_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-            report.save_html(str(DRIFT_REPORT_PATH))
+            snapshot.save_html(str(DRIFT_REPORT_PATH))
             report_path = str(DRIFT_REPORT_PATH)
             evidently_available = True
             logger.info("Relatório Evidently salvo em %s", report_path)

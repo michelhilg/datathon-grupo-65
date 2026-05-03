@@ -3,6 +3,8 @@
 from src.monitoring.drift import DriftDetector
 from src.monitoring.metrics import (
     CHURN_PROBABILITY_HISTOGRAM,
+    DRIFT_PSI_GAUGE,
+    DRIFT_RETRAIN_GAUGE,
     REQUEST_COUNT,
     REQUEST_LATENCY,
     SECURITY_BLOCK_COUNTER,
@@ -18,6 +20,8 @@ __all__ = [
     "CHURN_PROBABILITY_HISTOGRAM",
     "TOOL_CALL_COUNTER",
     "SECURITY_BLOCK_COUNTER",
+    "DRIFT_PSI_GAUGE",
+    "DRIFT_RETRAIN_GAUGE",
     "get_langfuse_handler",
     "ContextAccumulatorHandler",
     "DriftDetector",
