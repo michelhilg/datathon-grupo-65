@@ -16,6 +16,7 @@ Plataforma MLOps completa para predição de churn e recomendação de retençã
 - [Arquitetura](#arquitetura)
 - [Maturidade MLOps](#maturidade-mlops)
 - [Pré-requisitos](#pré-requisitos)
+- [Configuração do ambiente](#configuração-do-ambiente)
 - [Quickstart](#quickstart)
 - [Estrutura do Repositório](#estrutura-do-repositório)
 - [Etapas do Projeto](#etapas-do-projeto)
@@ -24,6 +25,7 @@ Plataforma MLOps completa para predição de churn e recomendação de retençã
   - [Etapa 3 — Avaliação e Observabilidade](#etapa-3--avaliação-e-observabilidade)
   - [Etapa 4 — Segurança e Governança](#etapa-4--segurança-e-governança)
 - [API](#api)
+- [Monitoramento LLM com Langfuse](#monitoramento-llm-com-langfuse)
 - [Testes](#testes)
 - [CI/CD](#cicd)
 - [Documentação de Governança](#documentação-de-governança)
@@ -101,23 +103,83 @@ Alinhado ao **Microsoft MLOps Maturity Model Nível 2** em todas as dimensões c
 | [uv](https://docs.astral.sh/uv/) | ≥ 0.4 |
 | Docker + Docker Compose | ≥ 24 |
 | OpenAI API Key | — |
+| Langfuse Account (opcional) | — |
+
+---
+
+## Configuração do ambiente
+
+Copie o template e preencha as variáveis antes de qualquer passo:
+
+```bash
+cp .env.example .env
+```
+
+### Variáveis obrigatórias
+
+| Variável | Descrição | Como obter |
+|---|---|---|
+| `OPENAI_API_KEY` | Chave de autenticação da API OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| `OPENAI_MODEL` | Modelo LLM utilizado pelo agente | Padrão: `gpt-4o-mini`. Use `gpt-4o` para maior qualidade |
+
+### MLflow
+
+| Variável | Descrição | Valor padrão |
+|---|---|---|
+| `MLFLOW_TRACKING_URI` | URI do servidor de tracking | `http://localhost:5000` (local) |
+| `MLFLOW_EXPERIMENT_NAME` | Nome do experimento no MLflow | `telco-churn` |
+
+> **Nota**: o arquivo `mlflow.db` está no `.gitignore`. Ao clonar o repositório do zero, o tracking history não estará disponível — é necessário executar o pipeline de treinamento localmente para reconstituí-lo (ver [Quickstart](#quickstart)).
+
+### Langfuse — observabilidade de LLM
+
+| Variável | Descrição | Como obter |
+|---|---|---|
+| `LANGFUSE_PUBLIC_KEY` | Chave pública do projeto | Painel em [cloud.langfuse.com](https://cloud.langfuse.com) → Settings → API Keys |
+| `LANGFUSE_SECRET_KEY` | Chave secreta do projeto | Mesmo painel acima |
+| `LANGFUSE_HOST` | Host do Langfuse | `https://cloud.langfuse.com` (cloud gratuito) ou URL self-hosted |
+
+> Langfuse tem plano gratuito. Sem as chaves configuradas, o agente funciona normalmente — apenas o rastreamento de LLM fica desabilitado.
+
+### Redis — feature store
+
+| Variável | Descrição | Valor padrão |
+|---|---|---|
+| `REDIS_URL` | URL de conexão com o Redis | `redis://localhost:6379/0` |
+| `FEATURE_TTL_SECONDS` | TTL do cache de features em segundos | `3600` (1 hora) |
+
+> Com Docker Compose, o Redis sobe automaticamente. Para desenvolvimento local sem Docker, instale Redis ou use `docker run -p 6379:6379 redis:alpine`. O sistema opera sem Redis com degradação graceful.
+
+### Serving
+
+| Variável | Descrição | Valor padrão |
+|---|---|---|
+| `API_HOST` | Host de bind da API | `0.0.0.0` |
+| `API_PORT` | Porta da API | `8080` |
 
 ---
 
 ## Quickstart
 
-### 1. Clonar e configurar variáveis de ambiente
+> **Contexto importante para quem clonou do zero**: o `mlflow.db` e o diretório `mlruns/` estão no `.gitignore`, portanto o histórico de experimentos não é distribuído junto ao repositório. O artefato do modelo treinado (`model/model.pkl`) **está versionado** e é suficiente para rodar a API. O índice RAG (`chroma_db/`) precisa ser construído localmente na primeira execução.
+
+### Opção A — Apenas rodar a API (modelo já disponível no repositório)
+
+Ideal para avaliar a plataforma sem precisar retreinar:
 
 ```bash
 git clone https://github.com/michelhilg/datathon-grupo-65.git
 cd datathon-grupo-65
+
+# 1. Configurar variáveis de ambiente
 cp .env.example .env
-# Edite .env e preencha OPENAI_API_KEY
-```
+# Edite .env e preencha pelo menos OPENAI_API_KEY
 
-### 2. Subir todos os serviços
+# 2. Instalar dependências e construir o índice RAG
+uv sync --all-groups
+uv run python scripts/build_index.py
 
-```bash
+# 3. Subir todos os serviços
 docker compose up --build
 ```
 
@@ -130,24 +192,39 @@ Serviços disponíveis após o startup:
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
 
-### 3. Desenvolvimento local (sem Docker)
+### Opção B — Pipeline completo do zero (recomendado para desenvolvimento)
+
+Reconstitui todo o histórico MLflow, retreina o modelo e sobe os serviços:
 
 ```bash
+git clone https://github.com/michelhilg/datathon-grupo-65.git
+cd datathon-grupo-65
+
+# 1. Configurar variáveis de ambiente
+cp .env.example .env
+# Edite .env com OPENAI_API_KEY e demais variáveis
+
+# 2. Instalar dependências
 uv sync --all-groups
-cp .env.example .env  # configure OPENAI_API_KEY
 
-# Preparar dados e índice RAG
+# 3. Preparar features e treinar o modelo (gera mlruns/ e model/)
 uv run python scripts/prepare_data.py
-uv run python scripts/build_index.py
-
-# Treinar modelo e registrar no MLflow
 uv run python scripts/train.py
 
-# Iniciar API
-uv run uvicorn src.serving.app:app --reload --port 8000
+# 4. Exportar artefato para o diretório model/
+uv run python scripts/export_model.py
+
+# 5. Construir índice RAG no ChromaDB
+uv run python scripts/build_index.py
+
+# 6. Subir serviços
+docker compose up --build
+
+# (Opcional) Acessar MLflow UI para ver experimentos
+uv run mlflow ui --port 5000
 ```
 
-### 4. Verificar saúde da plataforma
+### Verificar saúde da plataforma
 
 ```bash
 curl http://localhost:8000/health
@@ -326,13 +403,8 @@ Avalia `accuracy`, `completeness` e `actionability` com GPT-4o-mini como árbitr
 
 - **Prometheus** — métricas de latência, throughput, erros, probabilidades de churn, PSI de drift
 - **Grafana** — dashboards provisionados automaticamente via [configs/grafana/](configs/grafana/)
-- **Langfuse** — rastreamento de chamadas LLM, tokens, latência e custo por request
-- **Evidently** — detecção de data drift por PSI: warning > 0.1, retrain trigger > 0.2
-
-```bash
-# Gerar relatório de drift manualmente
-curl -X POST http://localhost:8000/drift-report
-```
+- **Langfuse** — traces de chamadas LLM, duração por tool, tokens, custo e erros (ver [seção dedicada](#monitoramento-llm-com-langfuse))
+- **Evidently** — detecção de data drift por PSI: warning > 0.1, retrain trigger > 0.2 (via `POST /drift-report`)
 
 ---
 
@@ -415,6 +487,33 @@ curl -X POST http://localhost:8000/analyze \
 }
 ```
 
+### `POST /drift-report`
+
+Gera um relatório Evidently com análise de data drift por PSI (Population Stability Index) comparando os dados de referência com as predições recentes.
+
+```bash
+curl -X POST http://localhost:8000/drift-report
+```
+
+```json
+{
+  "drift_detected": true,
+  "psi_score": 0.14,
+  "status": "warning",
+  "drifted_features": ["MonthlyCharges", "tenure"],
+  "recommendation": "PSI > 0.1: monitorar. Retraining recomendado se PSI ultrapassar 0.2.",
+  "report_path": "evaluation/drift_report.html"
+}
+```
+
+Thresholds de ação:
+
+| PSI | Status | Ação |
+|---|---|---|
+| < 0.1 | `stable` | Nenhuma |
+| 0.1 – 0.2 | `warning` | Monitorar de perto |
+| > 0.2 | `retrain` | Disparar pipeline de retraining |
+
 ### `GET /health`
 
 Retorna status granular por componente: `rag`, `agent`, `drift_detector`, `guardrails`.
@@ -422,6 +521,54 @@ Retorna status granular por componente: `rag`, `agent`, `drift_detector`, `guard
 ### `GET /metrics`
 
 Endpoint Prometheus para scraping de métricas operacionais.
+
+---
+
+## Monitoramento LLM com Langfuse
+
+O Langfuse rastreia cada chamada ao agente de ponta a ponta, do input do usuário até a resposta final, incluindo todos os passos intermediários do loop ReAct.
+
+### O que é rastreado
+
+| Dado | Descrição |
+|---|---|
+| **Traces** | Uma trace por chamada a `/analyze`, agrupando todos os spans internos |
+| **Spans de tool call** | Duração e resultado de cada tool invocada (`churn_predictor`, `retention_knowledge`, `feature_importance`) |
+| **Tokens** | Contagem de tokens de entrada e saída por chamada ao LLM |
+| **Latência** | Tempo total e por etapa do loop ReAct |
+| **Custo estimado** | Custo em USD calculado automaticamente com base no modelo e tokens consumidos |
+| **Erros** | Exceções capturadas com stack trace para depuração |
+
+### Como acessar
+
+1. Crie uma conta gratuita em [cloud.langfuse.com](https://cloud.langfuse.com)
+2. Crie um projeto e copie as chaves para o `.env` (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`)
+3. Após a primeira chamada a `/analyze`, as traces aparecerão no painel do Langfuse em tempo real
+
+### Exemplo de trace
+
+Uma chamada típica a `/analyze` gera uma trace com a seguinte estrutura:
+
+```
+analyze_customer                          (trace raiz)
+├── input_guardrail.validate              ~2 ms
+├── react_agent.run
+│   ├── llm.invoke [gpt-4o-mini]          ~800 ms   · 312 tokens
+│   ├── tool.churn_predictor              ~45 ms
+│   ├── llm.invoke [gpt-4o-mini]          ~650 ms   · 287 tokens
+│   ├── tool.retention_knowledge          ~120 ms
+│   ├── llm.invoke [gpt-4o-mini]          ~700 ms   · 401 tokens
+│   └── tool.feature_importance           ~15 ms
+└── output_guardrail.sanitize             ~30 ms
+```
+
+### Métricas disponíveis no painel
+
+- Latência P50 / P95 / P99 por endpoint
+- Taxa de erros por tool
+- Distribuição de consumo de tokens ao longo do tempo
+- Custo acumulado por período
+- Traces filtráveis por `customer_id`, status e modelo
 
 ---
 
