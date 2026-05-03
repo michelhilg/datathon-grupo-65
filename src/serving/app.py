@@ -19,6 +19,8 @@ from src.agent.react_agent import analyze_customer, create_churn_agent
 from src.agent.tools import build_tools, churn_predictor
 from src.monitoring import (
     CHURN_PROBABILITY_HISTOGRAM,
+    DRIFT_PSI_GAUGE,
+    DRIFT_RETRAIN_GAUGE,
     SECURITY_BLOCK_COUNTER,
     TOOL_CALL_COUNTER,
     ContextAccumulatorHandler,
@@ -227,7 +229,14 @@ def drift_report():
     if "drift_detector" not in _app_state:
         raise HTTPException(status_code=503, detail="Drift detector não inicializado.")
     try:
-        return _app_state["drift_detector"].run_report()
+        report = _app_state["drift_detector"].run_report()
+
+        if report.get("status") == "ok":
+            for feature, metrics in report.get("features", {}).items():
+                DRIFT_PSI_GAUGE.labels(feature=feature).set(metrics["psi"])
+            DRIFT_RETRAIN_GAUGE.set(1 if report.get("retrain_recommended") else 0)
+
+        return report
     except Exception as exc:
         logger.error("Erro no drift report: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))

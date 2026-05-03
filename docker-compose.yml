@@ -17,6 +17,7 @@ services:
       - ./mlflow.db:/app/mlflow.db
       - ./chroma_db:/app/chroma_db
       - ./data:/app/data
+      - ./evaluation:/app/evaluation
     command: uv run uvicorn src.serving.app:app --host 0.0.0.0 --port 8000
 
   prometheus:
@@ -25,6 +26,7 @@ services:
       - "9090:9090"
     volumes:
       - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
