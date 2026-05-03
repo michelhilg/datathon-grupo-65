@@ -159,7 +159,7 @@ jobs:
         run: |
           BRANCH="retraining/promote-${{ github.run_id }}"
           git checkout -b "$BRANCH"
-          git add model/ evaluation/model_metrics.json evaluation/champion_challenger_report.json
+          git add -f model/ evaluation/model_metrics.json evaluation/champion_challenger_report.json
           if git diff --cached --exit-code > /dev/null 2>&1; then
             echo "Sem alterações para commitar — modelo já é idêntico."
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
