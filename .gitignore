@@ -49,3 +49,6 @@ diretrizes/
 
 # Agents
 .agents/
+
+# Evidently — relatório gerado automaticamente, não versionar
+evaluation/drift_report.html
