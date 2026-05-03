@@ -33,3 +33,7 @@ training:
     class_weight: balanced
     random_state: 42
     n_estimators: 100
+
+champion_challenger:
+  experiment_name: Telco_Customer_Churn_Retraining
+  min_delta_auc: 0.005
