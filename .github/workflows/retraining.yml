@@ -130,6 +130,10 @@ jobs:
       needs.champion-challenger.outputs.decision == 'bootstrap'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
 
     steps:
       - uses: actions/checkout@v4
@@ -174,6 +178,19 @@ jobs:
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Report quality status for branch protection
+        if: steps.commit.outputs.has_changes == 'true'
+        run: |
+          SHA=$(git rev-parse HEAD)
+          gh api repos/${{ github.repository }}/statuses/$SHA \
+            -X POST \
+            -f state=success \
+            -f context=quality \
+            -f description="Retraining promote — somente artefatos de modelo alterados" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Pull Request
         if: steps.commit.outputs.has_changes == 'true'
