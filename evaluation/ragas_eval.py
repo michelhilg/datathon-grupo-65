@@ -89,7 +89,13 @@ def _run_agent_api(pair: dict, api_url: str) -> tuple[str, list[str]]:
     return data["analysis"], data.get("contexts") or []
 
 
-def build_ragas_dataset(pairs: list[dict], mode: str, api_url: str, limit: int | None) -> list[dict]:
+def build_ragas_dataset(
+    pairs: list[dict],
+    mode: str,
+    api_url: str,
+    limit: int | None,
+    _rag_fn_override=None,
+) -> list[dict]:
     """Executa o agente para cada par e monta lista de dicts para o Dataset RAGAS."""
     if limit:
         pairs = pairs[:limit]
@@ -98,7 +104,9 @@ def build_ragas_dataset(pairs: list[dict], mode: str, api_url: str, limit: int |
     for i, pair in enumerate(pairs):
         logger.info("[%d/%d] Avaliando par %s...", i + 1, len(pairs), pair["id"])
         try:
-            if mode == "direct":
+            if _rag_fn_override is not None:
+                answer, contexts = _rag_fn_override(pair["question"])
+            elif mode == "direct":
                 answer, contexts = _run_agent_direct(pair)
             else:
                 answer, contexts = _run_agent_api(pair, api_url)
@@ -164,6 +172,37 @@ def run_ragas_evaluation(rows: list[dict]) -> dict:
         "context_recall": float(np.nanmean(result["context_recall"])),
     }
     return scores
+
+
+def evaluate_rag_pipeline(
+    golden_set_path: str,
+    rag_fn,
+) -> dict[str, float]:
+    """Avalia pipeline RAG contra golden set.
+
+    Segue a assinatura canônica do datathon-guide (Etapa 3).
+
+    Args:
+        golden_set_path: Caminho para JSON com golden set.
+        rag_fn: Função que recebe query (str) e retorna (answer, contexts).
+
+    Returns:
+        Dicionário com 4 métricas RAGAS.
+    """
+    with open(golden_set_path) as f:
+        data = json.load(f)
+    pairs = data["pairs"] if "pairs" in data else data
+
+    rows = build_ragas_dataset(
+        pairs,
+        mode="direct",
+        api_url="",
+        limit=None,
+        _rag_fn_override=rag_fn,
+    )
+    if not rows:
+        raise ValueError("Nenhuma linha gerada. Verifique o golden set.")
+    return run_ragas_evaluation(rows)
 
 
 def main() -> None:

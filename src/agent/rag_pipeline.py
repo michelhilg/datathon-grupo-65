@@ -68,9 +68,9 @@ def _chunk_text(text: str, chunk_size: int = 512, overlap: int = 64) -> list[str
 def build_index(
     knowledge_base_dir: Path = KNOWLEDGE_BASE_DIR,
     persist_dir: Path = PERSIST_DIR,
-    model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    chunk_size: int = 512,
-    chunk_overlap: int = 64,
+    model_name: str = "sentence-transformers/multi-qa-MiniLM-L6-cos-v1",
+    chunk_size: int = 150,
+    chunk_overlap: int = 30,
     force_rebuild: bool = False,
 ) -> chromadb.Collection:
     """Indexa a knowledge base no ChromaDB.
@@ -120,7 +120,7 @@ def build_index(
     return collection
 
 
-def retrieve(query: str, collection: chromadb.Collection, top_k: int = 3) -> str:
+def retrieve(query: str, collection: chromadb.Collection, top_k: int = 5) -> str:
     """Recupera os chunks mais relevantes para a query.
 
     Args:

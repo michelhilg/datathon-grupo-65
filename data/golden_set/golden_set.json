@@ -1,7 +1,7 @@
 {
-  "version": "1.0",
+  "version": "2.0",
   "created_at": "2026-05-02",
-  "description": "Golden set para avaliação RAGAS e LLM-as-judge — 20 pares curados para o domínio de retenção de clientes Telco.",
+  "description": "Golden set para avaliação RAGAS e LLM-as-judge — 20 pares curados para o domínio de retenção de clientes Telco. v2.0: ground_truth convertido de formato rubrica para resposta direta de referência.",
   "pairs": [
     {
       "id": "gs_001",
@@ -28,7 +28,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar alto risco de churn (probabilidade acima de 70%), apontar como fatores principais: contrato mês-a-mês, tenure muito baixo (2 meses), ausência de serviços de proteção e suporte, e pagamento via cheque eletrônico. Deve recomendar migração imediata para contrato anual com desconto de 15-20%, oferta de pacote de segurança online gratuito por 3 meses e contato proativo na janela dos primeiros 30 dias.",
+      "ground_truth": "Este cliente apresenta alto risco de churn (acima de 70%). Os principais fatores de risco são: contrato mês-a-mês com 42,7% de churn histórico, tenure muito baixo de 2 meses (clientes entre 2-6 meses têm 57% de churn), ausência de OnlineSecurity e TechSupport (que reduzem churn em 27 e 26 pontos percentuais respectivamente), e pagamento por cheque eletrônico com 45,3% de churn histórico. Recomendações: migração imediata para contrato anual com desconto de 15-20% por 3 meses, oferta de bundle OnlineSecurity gratuito por 3 meses, contato proativo dentro dos primeiros 30 dias pois a janela de intervenção de 1-30 dias reduz churn em 45%.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.70, 1.00],
       "tags": ["month-to-month", "fiber", "low_tenure", "electronic_check", "no_services"]
@@ -58,7 +58,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve indicar alto risco de churn (acima de 70%) dado tenure de apenas 6 meses em contrato mês-a-mês com fibra óptica sem serviços de proteção. Deve destacar que a cobrança mensal alta (R$89,95) sem serviços adicionais de valor sugere percepção de custo-benefício ruim. Recomendações: oferta de bundle com OnlineSecurity e OnlineBackup com desconto, upgrade de contrato para 1 ano e contato dentro de 30 dias.",
+      "ground_truth": "Este cliente tem alto risco de churn (acima de 70%). Com 6 meses de tenure em contrato mês-a-mês com fibra óptica, sem nenhum serviço de proteção e cobrança mensal de R$89,95 sem adicionais de valor, o cliente percebe custo-benefício ruim — alta cobrança mensal sem serviços adicionais é combinação de altíssimo risco. Clientes de fibra óptica têm 41,9% de churn histórico. Recomendações: bundle com OnlineSecurity e OnlineBackup com desconto para justificar o valor pago, upgrade para contrato de 1 ano com desconto de 15%, contato dentro de 30 dias.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.70, 1.00],
       "tags": ["month-to-month", "fiber", "low_tenure", "high_charges", "no_protection_services"]
@@ -88,7 +88,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar alto risco de churn por combinar: cliente idoso (SeniorCitizen=1), tenure baixo (3 meses), contrato mês-a-mês sem nenhum serviço de suporte ou proteção. Deve mencionar que clientes idosos sem TechSupport têm taxa de churn significativamente elevada. Recomendações: oferta prioritária de TechSupport (suporte técnico), possível desconto para terceira idade, contato proativo via telefone (preferível ao digital para este perfil).",
+      "ground_truth": "Este cliente tem alto risco de churn (acima de 65%). É cliente idoso (SeniorCitizen=1) com tenure baixo de 3 meses em contrato mês-a-mês sem nenhum serviço de suporte ou proteção. Clientes idosos sem TechSupport têm 52% de taxa de churn — o TechSupport é o serviço mais crítico para idosos, reduzindo o churn em 34 pontos percentuais neste segmento. O canal de contato preferencial para clientes idosos é telefônico. Recomendações: oferta prioritária de TechSupport com desconto especial de 30% para idosos, desconto permanente de 10% na mensalidade para clientes idosos, contato proativo via telefone.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.65, 1.00],
       "tags": ["month-to-month", "dsl", "senior_citizen", "no_support", "low_tenure"]
@@ -118,7 +118,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar alto risco de churn: cobrança mensal elevada (R$95,75), contrato mês-a-mês com fibra óptica, pagamento por cheque eletrônico. Embora tenha parceiro (fator levemente protetor), a ausência de TechSupport e OnlineSecurity combinada com alto custo aumenta o risco. Recomendações: oferecer migração para contrato anual com desconto de 10-15%, adicionar TechSupport e OnlineSecurity no pacote para justificar o valor pago.",
+      "ground_truth": "Este cliente apresenta alto risco de churn (acima de 65%). Fatores de risco: cobrança mensal de R$95,75 sem TechSupport e sem OnlineSecurity (percepção de custo-benefício ruim), contrato mês-a-mês, pagamento por cheque eletrônico (45,3% de churn histórico). O parceiro é um fator levemente protetor (churn cai de 33% para 20% com parceiro), mas não suficiente para compensar os riscos. Recomendações: migração para contrato anual com desconto de 10-15%, adicionar TechSupport e OnlineSecurity no pacote para justificar o valor de R$95,75 e reduzir o churn em até 27 pontos percentuais.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.65, 1.00],
       "tags": ["month-to-month", "fiber", "high_charges", "electronic_check"]
@@ -148,7 +148,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar altíssimo risco de churn: cliente novíssimo (tenure=0, TotalCharges vazio), contrato mês-a-mês com fibra óptica sem nenhum serviço adicional. Clientes no primeiro mês têm a maior taxa de cancelamento (período crítico de onboarding). Recomendações: intervenção imediata de onboarding, ligação de boas-vindas nas primeiras 48h, oferta de trial gratuito de OnlineSecurity por 30 dias, promoção de migração para contrato anual com desconto.",
+      "ground_truth": "Este cliente está em altíssimo risco de churn (acima de 70%). Com tenure=0 (TotalCharges vazio, primeiro mês), contrato mês-a-mês com fibra óptica e nenhum serviço adicional, este é o período mais crítico da jornada — clientes no primeiro mês têm 65% de taxa de churn. A intervenção nas primeiras 48h reduz o churn em 45%. Ativar ao menos 1 serviço adicional no primeiro mês reduz o churn em 50% em 6 meses. Recomendações: ligação de boas-vindas nas primeiras 48h, trial gratuito de OnlineSecurity por 30 dias, promoção de migração para contrato anual com desconto de 20%.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.70, 1.00],
       "tags": ["month-to-month", "fiber", "new_customer", "tenure_zero", "no_services"]
@@ -178,7 +178,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar alto risco combinando cliente idoso, contrato mês-a-mês, fibra óptica sem serviços de suporte, cobrança mensal muito alta (R$98,50) e sem serviço de telefone. A ausência de TechSupport é especialmente crítica para clientes idosos com internet de alta demanda. Recomendações: contato telefônico proativo, oferta de TechSupport com desconto especial para idosos, revisão do plano para avaliar se a fibra está sendo usada adequadamente.",
+      "ground_truth": "Este cliente tem alto risco de churn (acima de 70%). Combina: cliente idoso (SeniorCitizen=1) com 5 meses de tenure em contrato mês-a-mês, fibra óptica sem TechSupport e sem OnlineSecurity, cobrança mensal muito alta de R$98,50. Clientes idosos sem TechSupport têm 52% de taxa de churn — a ausência de suporte técnico é especialmente crítica para idosos com internet de alta demanda. O canal preferencial para idosos é telefônico. Recomendações: contato telefônico proativo, oferta de TechSupport com desconto de 30% para idosos, revisão do plano de fibra para avaliar se está sendo usado adequadamente.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.70, 1.00],
       "tags": ["month-to-month", "fiber", "senior_citizen", "high_charges", "no_support"]
@@ -208,7 +208,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar alto risco: 12 meses ainda em contrato mês-a-mês com fibra óptica, cobrança alta sem serviços de suporte. O cliente está na janela crítica de 12 meses sem ter migrado para contrato anual. Recomendações: oferta de aniversário de 1 ano com desconto agressivo para migrar para contrato de 2 anos, adicionar TechSupport e OnlineSecurity no pacote, mencionar que clientes com contrato de 2 anos têm apenas 2.8% de taxa de churn.",
+      "ground_truth": "Este cliente tem alto risco de churn (acima de 55%). Com 12 meses exatos em contrato mês-a-mês com fibra óptica e sem serviços de suporte, está na janela crítica de aniversário — clientes que completam 12 meses sem migrar para contrato anual têm 55% de probabilidade de cancelar nos próximos 6 meses. Clientes em contrato de 2 anos têm apenas 2,8% de taxa de churn versus 42,7% em mês-a-mês. Recomendações: oferta de aniversário de 1 ano com desconto agressivo de 20-25% para migrar para contrato de 2 anos com validade de 15 dias, bundle com TechSupport e OnlineSecurity inclusos por 6 meses.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.60, 1.00],
       "tags": ["month-to-month", "fiber", "12_months", "anniversary_window", "electronic_check"]
@@ -238,7 +238,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar risco médio de churn (40-70%): cliente idoso com contrato anual (fator protetor) mas sem nenhum serviço de suporte ou proteção, especialmente crítico para o perfil idoso. Pagamento automático por cartão de crédito é um fator protetor. Recomendações: oferta de TechSupport antes da renovação anual, pacote bundle com desconto para renovação com serviços adicionais, comunicação de renovação proativa 60 dias antes do vencimento.",
+      "ground_truth": "Este cliente tem risco médio de churn (40-70%). É cliente idoso com contrato anual (fator protetor com 11,3% de churn) e pagamento automático por cartão de crédito (15,2% de churn — fator protetor). Porém, clientes idosos sem TechSupport têm 52% de churn — a ausência de suporte é o principal risco para este perfil. Recomendações: oferta de TechSupport com desconto de 30% para idosos antes da renovação anual, bundle com serviços adicionais para a renovação, comunicação proativa de renovação 60 dias antes do vencimento.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.40, 0.70],
       "tags": ["one_year", "fiber", "senior_citizen", "no_support", "auto_payment"]
@@ -268,7 +268,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar risco médio: o tenure de 18 meses com contrato mês-a-mês e DSL com OnlineSecurity é um perfil misto. Fatores protetores: parceiro, pagamento automático, OnlineSecurity presente. Fatores de risco: contrato mês-a-mês sem outros serviços de proteção. Recomendações: migração incentivada para contrato anual antes dos 24 meses, oferta de bundle com OnlineBackup e DeviceProtection a preço reduzido.",
+      "ground_truth": "Este cliente tem risco médio de churn (35-65%). É perfil misto: 18 meses de tenure em contrato mês-a-mês com DSL e OnlineSecurity. Fatores protetores: parceiro presente (churn cai para 20% vs 33% sem parceiro), pagamento automático (3x menor churn que electronic check), OnlineSecurity ativo. Fatores de risco: contrato mês-a-mês sem outros serviços de proteção. DSL tem 19% de churn histórico, mais baixo que fibra. Recomendações: migração para contrato anual antes dos 24 meses com desconto de 8-12%, bundle com OnlineBackup e DeviceProtection a preço reduzido.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.35, 0.65],
       "tags": ["month-to-month", "dsl", "18_months", "partial_services", "auto_payment"]
@@ -298,7 +298,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar risco médio: contrato anual com fibra óptica e alguns serviços de proteção (backup e device) mas sem segurança online ou suporte técnico. Pagamento por boleto (mailed check) é um fator de risco. Recomendações: migrar método de pagamento para automático (pode ter desconto), oferecer TechSupport e OnlineSecurity, discussão de renovação antecipada com desconto para contrato de 2 anos.",
+      "ground_truth": "Este cliente tem risco médio de churn (35-65%). Tem contrato anual (11,3% de churn) com fibra óptica e OnlineBackup e DeviceProtection, mas sem OnlineSecurity (que reduziria churn em 27 pp) e sem TechSupport (que reduziria churn em 26 pp). O pagamento por mailed check (19,1% de churn) é fator de risco comparado a pagamentos automáticos (15-16% de churn). Recomendações: migrar pagamento para automático com desconto de R$5/mês, oferecer TechSupport e OnlineSecurity, discutir renovação antecipada para contrato de 2 anos com congelamento de mensalidade.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.35, 0.65],
       "tags": ["one_year", "fiber", "partial_services", "mailed_check"]
@@ -328,7 +328,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar risco médio-alto: apesar de usar DSL (menor churn histórico que fibra), o contrato mês-a-mês sem nenhum serviço adicional e tenure de apenas 8 meses representa risco. Fator protetor: pagamento automático por cartão. Recomendações: oferta de primeiro serviço adicional com desconto (OnlineSecurity ou OnlineBackup), proposta de migração para contrato anual com mensalidade congelada.",
+      "ground_truth": "Este cliente tem risco médio-alto de churn (35-70%). Apesar de usar DSL (19% de churn histórico, menor que fibra óptica com 41,9%), o contrato mês-a-mês sem nenhum serviço adicional e tenure de 8 meses representa risco — clientes com 0 serviços adicionais têm 55% de churn. O pagamento automático por cartão (15,2% de churn) é o principal fator protetor. Recomendações: oferta de primeiro serviço adicional com desconto (OnlineSecurity ou OnlineBackup com 60 dias grátis), proposta de migração para contrato anual com mensalidade congelada.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.35, 0.70],
       "tags": ["month-to-month", "dsl", "no_services", "auto_payment", "low_tenure"]
@@ -358,7 +358,7 @@
         "StreamingMovies": "No internet service"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar risco médio: cliente sem serviço de internet com tenure de 22 meses em contrato mês-a-mês. Pagamento via cheque eletrônico é fator de risco. Somente utiliza serviço de telefone (linhas múltiplas). Recomendações: oferta de pacote de internet DSL a preço promocional para aumentar o vínculo, migração para contrato anual para o serviço de telefone atual, upsell de internet como expansão do relacionamento.",
+      "ground_truth": "Este cliente tem risco médio de churn (35-65%). É cliente só-telefone (sem internet) com tenure de 22 meses em contrato mês-a-mês. Clientes sem internet têm taxa média de 7,4% de churn, mas o pagamento por cheque eletrônico eleva esse risco para 18% neste grupo. Clientes só-telefone têm baixo engajamento — 68% nunca receberam oferta de internet e têm alta taxa de conversão quando abordados. Recomendações: oferta de internet DSL introdutória (R$29,90/mês por 6 meses), migração para contrato anual do serviço de telefone com desconto de 5-10%, upsell de internet como expansão do relacionamento.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.35, 0.65],
       "tags": ["month-to-month", "no_internet", "phone_only", "electronic_check"]
@@ -388,7 +388,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar baixo risco de churn (abaixo de 20%): cliente com 48 meses de tenure, contrato de 2 anos, todos os serviços de proteção e suporte, parceiro e dependentes, pagamento automático. Este perfil representa um cliente de alto valor com muito baixa probabilidade de cancelamento. Recomendações focadas em upsell: oferecer StreamingTV/StreamingMovies, comunicar renovação automática do contrato, agradecer fidelidade com benefício exclusivo.",
+      "ground_truth": "Este cliente tem baixo risco de churn (abaixo de 15%). Com 48 meses de tenure, contrato de 2 anos (2,8% de churn histórico), todos os serviços de proteção e suporte, parceiro e dependentes (churn cai para ~12% com família) e pagamento automático (3x menor churn). Clientes com tenure > 24 meses têm apenas 15% de churn. Recomendações focadas em upsell e fidelização: oferecer StreamingTV e StreamingMovies como bundle de entretenimento familiar, comunicar renovação automática com benefício exclusivo, programa de indicação com crédito de R$30 por familiar indicado.",
       "expected_risk_level": "Baixo",
       "expected_churn_range": [0.0, 0.25],
       "tags": ["two_year", "dsl", "full_services", "long_tenure", "family_profile"]
@@ -418,7 +418,7 @@
         "StreamingMovies": "Yes"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar muito baixo risco de churn (abaixo de 10%): cliente de 60 meses com contrato de 2 anos, todos os serviços contratados, streaming, pagamento automático. Este é um cliente premium e de alta receita. O foco deve ser em retenção preventiva e upsell. Recomendações: programa de fidelidade VIP, notificação antecipada de renovação com benefícios exclusivos, possível oferta de upgrade de velocidade de fibra.",
+      "ground_truth": "Este cliente tem muito baixo risco de churn (abaixo de 5%). Com 60 meses de tenure, contrato de 2 anos, todos os serviços contratados incluindo streaming, e pagamento automático — clientes com tenure > 60 meses têm churn abaixo de 5%. LTV estimado acima de R$4.800. Recomendações focadas em retenção preventiva e expansão de LTV: programa de fidelidade VIP com benefícios exclusivos, notificação antecipada de renovação com upgrade de velocidade de fibra sem custo adicional, programa de indicação com crédito de R$30 por indicação convertida.",
       "expected_risk_level": "Baixo",
       "expected_churn_range": [0.0, 0.15],
       "tags": ["two_year", "fiber", "full_services", "streaming", "high_value", "long_tenure"]
@@ -448,7 +448,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar baixo risco: tenure de 36 meses, contrato anual, parceiro e dependentes, pagamento automático por cartão, com serviços de segurança e backup. Recomendações preventivas: oferta de renovação antecipada para contrato de 2 anos com congelamento de mensalidade, adição de TechSupport e DeviceProtection no bundle para ampliar o vínculo, programa de indicação para familiares.",
+      "ground_truth": "Este cliente tem baixo risco de churn (abaixo de 20%). Com 36 meses de tenure, contrato anual, parceiro e dependentes (churn ~12% com família), pagamento automático por cartão (15,2% de churn) e OnlineSecurity e OnlineBackup ativos. Recomendações preventivas: oferta de renovação antecipada para contrato de 2 anos com congelamento de mensalidade, adicionar TechSupport e DeviceProtection no bundle para ampliar o vínculo da família, programa de indicação para familiares com crédito de R$30 por indicação.",
       "expected_risk_level": "Baixo",
       "expected_churn_range": [0.0, 0.30],
       "tags": ["one_year", "dsl", "medium_tenure", "family", "partial_services"]
@@ -478,7 +478,7 @@
         "StreamingMovies": "No internet service"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar muito baixo risco: 72 meses de tenure, contrato de 2 anos, parceiro e dependentes, pagamento automático. Cliente de longa data com apenas serviço de telefone. Recomendações focadas em expansão: oferta de internet DSL a preço especial para clientes fiéis, bundle família com linhas adicionais para dependentes, comunicar benefícios de lealdade.",
+      "ground_truth": "Este cliente tem muito baixo risco de churn (abaixo de 5%). Com 72 meses de tenure, contrato de 2 anos, parceiro e dependentes e pagamento automático — clientes com tenure > 60 meses têm churn abaixo de 5%; com família e contrato de 2 anos, abaixo de 3%. É cliente de longa data com apenas serviço de telefone e baixo LTV. Recomendações focadas em expansão: oferta de internet DSL a preço especial para clientes fiéis (R$29,90/mês pelos primeiros 6 meses), bundle família com MultipleLines com 50% de desconto para dependentes, benefícios de lealdade como crédito de fatura.",
       "expected_risk_level": "Baixo",
       "expected_churn_range": [0.0, 0.15],
       "tags": ["two_year", "no_internet", "phone_only", "long_tenure", "family", "loyal_customer"]
@@ -508,7 +508,7 @@
         "StreamingMovies": "No"
       },
       "question": "Qual desconto devo oferecer para reter este cliente?",
-      "ground_truth": "A resposta deve responder diretamente à pergunta sobre desconto: dado o alto risco de churn (acima de 70%), recomendar desconto de 15-20% na mensalidade por 3 meses condicionado à migração para contrato anual, ou desconto de 25% no primeiro mês de serviços adicionais (OnlineSecurity + TechSupport). Deve mencionar que o ROI da retenção justifica o desconto pois o LTV do cliente em contrato anual supera 10x o custo do desconto.",
+      "ground_truth": "Para reter este cliente de alto risco (acima de 70%), o desconto recomendado é: 15-20% na mensalidade por 3 meses condicionado à migração para contrato anual, ou 25% no primeiro mês de serviços adicionais (OnlineSecurity + TechSupport). O ROI da retenção justifica plenamente o desconto: o custo do desconto de 20% por 3 meses é de aproximadamente R$45, enquanto o LTV do cliente em contrato anual é de R$2.400. O LTV do cliente em contrato anual supera 10x o custo do desconto oferecido na retenção, com ROI do programa de retenção de 53:1.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.70, 1.00],
       "tags": ["month-to-month", "fiber", "custom_question", "discount_strategy", "high_risk"]
@@ -538,7 +538,7 @@
         "StreamingMovies": "No internet service"
       },
       "question": "Como migrar este cliente para um contrato anual?",
-      "ground_truth": "A resposta deve abordar a estratégia de migração para contrato anual para um cliente de telefonia sem internet: apresentar o benefício do congelamento de preço por 12 meses, desconto de 5-10% na mensalidade anual equivalente, possibilidade de incluir um serviço de internet DSL a preço introdutório como oferta de valor agregado. Deve mencionar que o pagamento por boleto é uma barreira e sugerir migrar para débito automático como parte da oferta.",
+      "ground_truth": "Para migrar este cliente de telefonia sem internet para contrato anual, a estratégia recomendada é: apresentar o benefício do congelamento de preço por 12 meses com desconto de 5-10% na mensalidade equivalente, incluir oferta de internet DSL introdutória (R$29,90/mês pelos primeiros 6 meses) como valor agregado — adicionar internet aumenta o LTV em 3x e reduz churn em 60%. O pagamento por boleto (mailed check, 19,1% de churn) é uma barreira ao compromisso — incluir na oferta a migração para débito automático com desconto de R$5/mês, pois pagamentos automáticos têm 3x menor churn que electronic check.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.30, 0.60],
       "tags": ["month-to-month", "no_internet", "phone_only", "custom_question", "migration_strategy"]
@@ -568,7 +568,7 @@
         "StreamingMovies": "Yes"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar alto risco: cliente com fibra óptica e streaming mas sem serviços de proteção ou suporte, contrato mês-a-mês, tenure baixo, cheque eletrônico. Os serviços de streaming representam oportunidade de upsell em bundle. Recomendações: bundle 'Entretenimento Protegido' combinando streaming + OnlineSecurity + OnlineBackup com desconto de 10%, migração para contrato anual com manutenção dos serviços de streaming.",
+      "ground_truth": "Este cliente tem alto risco de churn (acima de 60%). Combina fibra óptica com StreamingTV e StreamingMovies, mas sem OnlineSecurity e sem TechSupport, em contrato mês-a-mês com tenure de 7 meses e pagamento por cheque eletrônico (45,3% de churn). Clientes de fibra sem serviços de proteção têm 41,9% de churn histórico. Os serviços de streaming representam oportunidade de upsell em bundle de retenção. Recomendações: bundle 'Entretenimento Protegido' (StreamingTV + StreamingMovies + OnlineSecurity + OnlineBackup por R$45/mês, vs R$56 separados), migração para contrato anual mantendo os serviços de streaming.",
       "expected_risk_level": "Alto",
       "expected_churn_range": [0.60, 1.00],
       "tags": ["month-to-month", "fiber", "streaming", "no_protection", "upsell_opportunity"]
@@ -598,7 +598,7 @@
         "StreamingMovies": "No internet service"
       },
       "question": "Qual o risco de churn deste cliente e quais ações de retenção tomar?",
-      "ground_truth": "A resposta deve identificar o perfil mínimo de cliente (apenas telefone, tenure=1 mês, mensalidade muito baixa). O risco de churn deve ser avaliado considerando a baixa dependência dos serviços. Recomendações: onboarding digital com oferta de internet DSL a preço de entrada, sugestão de migração para contrato anual com desconto, comunicação educativa sobre os benefícios de expandir os serviços para aumentar o engajamento e reduzir o risco de cancelamento.",
+      "ground_truth": "Este cliente tem risco médio a alto de churn (30-70%). É perfil mínimo: apenas serviço de telefone com tenure de 1 mês e mensalidade de R$20,05 — baixa dependência dos serviços aumenta o risco de cancelamento. O pagamento por cheque eletrônico eleva o risco neste grupo para até 18% (vs 7,4% médio para clientes só-telefone). Clientes só-telefone no primeiro mês precisam de onboarding proativo. Recomendações: ligação de boas-vindas nas primeiras 48h, oferta de internet DSL introdutória (R$29,90/mês pelos primeiros 6 meses), migração para contrato anual com desconto de 5-10%, comunicação sobre os benefícios de expandir os serviços.",
       "expected_risk_level": "Médio",
       "expected_churn_range": [0.30, 0.70],
       "tags": ["month-to-month", "no_internet", "phone_only", "minimal_customer", "onboarding"]

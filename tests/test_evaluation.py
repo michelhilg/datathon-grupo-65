@@ -116,6 +116,29 @@ def test_build_ragas_dataset_uses_placeholder_when_no_contexts():
     assert rows[0]["contexts"] == ["[contexto não disponível]"]
 
 
+def test_evaluate_rag_pipeline_canonical_signature():
+    """evaluate_rag_pipeline deve aceitar (golden_set_path, rag_fn) e retornar 4 métricas."""
+    from unittest.mock import MagicMock
+
+    from evaluation.ragas_eval import evaluate_rag_pipeline
+
+    mock_answer = "O cliente tem 85% de probabilidade de churn."
+    mock_contexts = ["[churn_patterns.md]\nFiber optic tem 41.9% de churn."]
+    rag_fn = MagicMock(return_value=(mock_answer, mock_contexts))
+
+    with patch("evaluation.ragas_eval.run_ragas_evaluation", return_value={
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.85,
+        "context_precision": 0.88,
+        "context_recall": 0.82,
+    }) as mock_eval:
+        metrics = evaluate_rag_pipeline("data/golden_set/golden_set.json", rag_fn)
+
+    assert set(metrics.keys()) == {"faithfulness", "answer_relevancy", "context_precision", "context_recall"}
+    assert all(isinstance(v, float) for v in metrics.values())
+    assert rag_fn.called
+
+
 # ---------------------------------------------------------------------------
 # llm_judge.py — parse_judge_response
 # ---------------------------------------------------------------------------

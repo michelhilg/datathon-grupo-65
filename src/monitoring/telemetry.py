@@ -26,14 +26,15 @@ class ContextAccumulatorHandler(BaseCallbackHandler):
         self,
         output: Any,
         *,
-        run_id: UUID,
-        parent_run_id: UUID | None = None,
+        run_id: UUID,  # noqa: ARG002
+        parent_run_id: UUID | None = None,  # noqa: ARG002
         **kwargs: Any,
     ) -> None:
         output_str = str(output) if not isinstance(output, str) else output
-        # retrieve() separa chunks com _CHUNK_SEPARATOR — sinal exclusivo de retention_knowledge
-        if _CHUNK_SEPARATOR in output_str:
-            chunks = [c.strip() for c in output_str.split(_CHUNK_SEPARATOR) if c.strip()]
+        if _CHUNK_SEPARATOR not in output_str:
+            return
+        chunks = [c.strip() for c in output_str.split(_CHUNK_SEPARATOR) if c.strip()]
+        if chunks:
             self.captured_contexts.extend(chunks)
 
 
@@ -56,14 +57,7 @@ def get_langfuse_handler() -> Any:
         from langfuse import Langfuse  # noqa: PLC0415
         from langfuse.langchain import CallbackHandler  # noqa: PLC0415
         
-        # Inicializamos o cliente global do Langfuse com as chaves lidas
-        lf_client = Langfuse(
-            public_key=pk,
-            secret_key=sk,
-            host=host
-        )
-        
-        # O CallbackHandler irá automaticamente se acoplar a esse client
+        Langfuse(public_key=pk, secret_key=sk, host=host)
         handler = CallbackHandler()
         logger.info("Langfuse telemetria habilitada com sucesso para esta requisição.")
         return handler
