@@ -1,0 +1,482 @@
+# Datathon Grupo 65 — Telco Churn Intelligence Platform
+
+> **FIAP Pós-Tech MLET · Fase 05 — Deploy Avançado de IA Generativa**
+
+Plataforma MLOps completa para predição de churn e recomendação de retenção em operadoras de telecomunicações. Combina um modelo de classificação clássico com um agente ReAct baseado em LLM, RAG sobre base de conhecimento proprietária, observabilidade full-stack e governança para conformidade LGPD.
+
+[![CI](https://github.com/michelhilg/datathon-grupo-65/actions/workflows/ci.yml/badge.svg)](https://github.com/michelhilg/datathon-grupo-65/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/downloads/release/python-3110/)
+[![Coverage ≥60%](https://img.shields.io/badge/coverage-≥60%25-brightgreen)](#testes)
+[![MLOps Level 2](https://img.shields.io/badge/MLOps-Level%202-orange)](#maturidade-mlops)
+
+---
+
+## Sumário
+
+- [Arquitetura](#arquitetura)
+- [Maturidade MLOps](#maturidade-mlops)
+- [Pré-requisitos](#pré-requisitos)
+- [Quickstart](#quickstart)
+- [Estrutura do Repositório](#estrutura-do-repositório)
+- [Etapas do Projeto](#etapas-do-projeto)
+  - [Etapa 1 — Dados e Baseline](#etapa-1--dados-e-baseline)
+  - [Etapa 2 — LLM, Agente e Serving](#etapa-2--llm-agente-e-serving)
+  - [Etapa 3 — Avaliação e Observabilidade](#etapa-3--avaliação-e-observabilidade)
+  - [Etapa 4 — Segurança e Governança](#etapa-4--segurança-e-governança)
+- [API](#api)
+- [Testes](#testes)
+- [CI/CD](#cicd)
+- [Documentação de Governança](#documentação-de-governança)
+- [Referências](#referências)
+
+---
+
+## Arquitetura
+
+```mermaid
+flowchart TD
+    subgraph Entrada["Entrada"]
+        U[Cliente / Analista]
+    end
+
+    subgraph Segurança["Segurança"]
+        IG[InputGuardrail\nPrompt Injection · Size Limit · Topic Filter]
+        OG[OutputGuardrail\nPresidio PII Removal]
+    end
+
+    subgraph Agente["Agente ReAct — LangGraph"]
+        T1[churn_predictor\nRandom Forest via MLflow]
+        T2[retention_knowledge\nRAG · ChromaDB]
+        T3[feature_importance\nTop-5 risk factors]
+    end
+
+    subgraph Infraestrutura["Infraestrutura"]
+        FS[Feature Store\nRedis · TTL Upsert]
+        VDB[Vector Store\nChromaDB · ONNX Embeddings]
+        ML[MLflow\nExperiment Tracking · Model Registry]
+    end
+
+    subgraph Observabilidade["Observabilidade"]
+        P[Prometheus]
+        G[Grafana]
+        LF[Langfuse\nLLMOps Telemetry]
+        EV[Evidently\nDrift Detection · PSI]
+    end
+
+    U --> IG
+    IG --> Agente
+    T1 --> FS
+    T2 --> VDB
+    T3 --> ML
+    Agente --> OG
+    OG --> U
+    Agente --> P
+    P --> G
+    Agente --> LF
+    T1 --> EV
+```
+
+---
+
+## Maturidade MLOps
+
+Alinhado ao **Microsoft MLOps Maturity Model Nível 2** em todas as dimensões críticas:
+
+| Dimensão | Implementação |
+|---|---|
+| Experiment Management | MLflow com métricas, parâmetros, artifacts e tags padronizadas |
+| Model Management | Model Registry com versionamento, lineage e champion-challenger |
+| CI/CD | GitHub Actions: lint (ruff) → testes (pytest ≥60%) → build |
+| Monitoring | Prometheus + Grafana + Langfuse + Evidently (PSI) |
+| Data Management | DVC para versionamento, dados sintéticos em dev/CI |
+| Feature Management | Redis feature store com upsert incremental e TTL |
+
+---
+
+## Pré-requisitos
+
+| Ferramenta | Versão |
+|---|---|
+| Python | 3.11 |
+| [uv](https://docs.astral.sh/uv/) | ≥ 0.4 |
+| Docker + Docker Compose | ≥ 24 |
+| OpenAI API Key | — |
+
+---
+
+## Quickstart
+
+### 1. Clonar e configurar variáveis de ambiente
+
+```bash
+git clone https://github.com/michelhilg/datathon-grupo-65.git
+cd datathon-grupo-65
+cp .env.example .env
+# Edite .env e preencha OPENAI_API_KEY
+```
+
+### 2. Subir todos os serviços
+
+```bash
+docker compose up --build
+```
+
+Serviços disponíveis após o startup:
+
+| Serviço | URL |
+|---|---|
+| API FastAPI | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
+
+### 3. Desenvolvimento local (sem Docker)
+
+```bash
+uv sync --all-groups
+cp .env.example .env  # configure OPENAI_API_KEY
+
+# Preparar dados e índice RAG
+uv run python scripts/prepare_data.py
+uv run python scripts/build_index.py
+
+# Treinar modelo e registrar no MLflow
+uv run python scripts/train.py
+
+# Iniciar API
+uv run uvicorn src.serving.app:app --reload --port 8000
+```
+
+### 4. Verificar saúde da plataforma
+
+```bash
+curl http://localhost:8000/health
+```
+
+```json
+{
+  "status": "healthy",
+  "components": {
+    "rag": "ready",
+    "agent": "ready",
+    "drift_detector": "ready",
+    "guardrails": "ready"
+  }
+}
+```
+
+---
+
+## Estrutura do Repositório
+
+```
+datathon-grupo-65/
+├── .github/workflows/
+│   ├── ci.yml                  # lint → test → build
+│   └── retraining.yml          # champion-challenger agendado
+├── configs/
+│   ├── model_config.yaml       # hiperparâmetros do modelo
+│   ├── prometheus.yml          # scrape configs
+│   ├── alert.rules.yml         # regras de alerta
+│   └── grafana/                # dashboards e datasources provisionados
+├── data/
+│   ├── raw/                    # dados brutos (DVC-tracked)
+│   ├── processed/              # features.parquet
+│   ├── golden_set/             # ≥20 pares para avaliação RAGAS
+│   └── knowledge_base/         # documentos para RAG
+├── docs/
+│   ├── MODEL_CARD.md
+│   ├── SYSTEM_CARD.md
+│   ├── LGPD_PLAN.md
+│   ├── OWASP_MAPPING.md
+│   └── RED_TEAM_REPORT.md
+├── evaluation/
+│   ├── ragas_eval.py           # 4 métricas RAGAS
+│   ├── llm_judge.py            # LLM-as-judge (3 critérios)
+│   └── benchmark.py            # benchmark de configurações
+├── notebooks/
+│   └── 01_eda.ipynb
+├── scripts/
+│   ├── prepare_data.py
+│   ├── train.py
+│   ├── build_index.py
+│   ├── champion_challenger.py
+│   └── entrypoint.sh
+├── src/
+│   ├── agent/
+│   │   ├── react_agent.py      # LangGraph ReAct loop
+│   │   ├── tools.py            # 3 tools customizadas
+│   │   └── rag_pipeline.py     # ChromaDB + ONNX embeddings
+│   ├── features/
+│   │   ├── feature_engineering.py
+│   │   └── feature_store.py    # Redis upsert incremental
+│   ├── models/
+│   │   └── train.py            # MLflow experiment tracking
+│   ├── monitoring/
+│   │   ├── metrics.py          # Prometheus custom metrics
+│   │   ├── drift.py            # Evidently PSI
+│   │   └── telemetry.py        # Langfuse integration
+│   ├── security/
+│   │   └── guardrails.py       # InputGuardrail + OutputGuardrail
+│   └── serving/
+│       ├── app.py              # FastAPI endpoints
+│       ├── health.py
+│       └── Dockerfile
+├── tests/                      # cobertura ≥60%
+├── diretrizes/
+│   └── datathon-guide.md
+├── docker-compose.yml
+├── dvc.yaml
+├── params.yaml
+├── pyproject.toml
+└── .env.example
+```
+
+---
+
+## Etapas do Projeto
+
+### Etapa 1 — Dados e Baseline
+
+**Dataset**: IBM Telco Customer Churn — 7.043 clientes, 26,5% de churn, 20 features.
+
+**Pipeline de dados** (orquestrado via DVC):
+
+```bash
+uv run dvc repro          # executa prepare_data → train → evaluate
+uv run dvc dag            # visualiza o grafo de dependências
+```
+
+**Feature engineering** ([src/features/feature_engineering.py](src/features/feature_engineering.py)):
+
+- `avg_monthly_spend` — gasto médio mensal ao longo da tenure
+- `services_count` — total de serviços contratados
+- `tenure_bucket` — segmentação por tempo de contrato
+- Encoding binário e one-hot para variáveis categóricas
+- Tratamento de `TotalCharges` com valores ausentes
+
+**Treinamento com MLflow** ([src/models/train.py](src/models/train.py)):
+
+```bash
+uv run python scripts/train.py
+# Acesse o MLflow UI: uv run mlflow ui --port 5000
+```
+
+Métricas registradas por run: `auc`, `f1`, `precision`, `recall`. Tags obrigatórias: `model_type`, `framework`, `owner`, `phase`.
+
+**Champion-Challenger** ([scripts/champion_challenger.py](scripts/champion_challenger.py)):
+
+O challenger só promove a champion se `delta_auc ≥ 0.005`. Disparado automaticamente via `retraining.yml`.
+
+---
+
+### Etapa 2 — LLM, Agente e Serving
+
+**Agente ReAct** ([src/agent/react_agent.py](src/agent/react_agent.py)) — construído com LangGraph:
+
+| Tool | Descrição |
+|---|---|
+| `churn_predictor` | Predição de churn via Random Forest (cache Redis) |
+| `retention_knowledge` | Recuperação RAG de estratégias de retenção |
+| `feature_importance` | Top-5 fatores de risco do modelo |
+
+**RAG Pipeline** ([src/agent/rag_pipeline.py](src/agent/rag_pipeline.py)):
+
+- Embeddings com `sentence-transformers/multi-qa-MiniLM-L6-cos-v1` quantizado em ONNX (90 MB → 25 MB, <1% de perda de qualidade)
+- Vector store ChromaDB persistente
+- Chunking: 150 tokens, overlap de 30
+
+**Feature Store** ([src/features/feature_store.py](src/features/feature_store.py)):
+
+- Redis com upsert incremental (HSET + TTL) — sem janela de store vazio
+- Degradação graceful se Redis indisponível
+
+---
+
+### Etapa 3 — Avaliação e Observabilidade
+
+**Golden Set**: 20+ pares `(query, expected_answer, contexts)` em [data/golden_set/golden_set.json](data/golden_set/golden_set.json).
+
+**RAGAS** ([evaluation/ragas_eval.py](evaluation/ragas_eval.py)):
+
+```bash
+uv run python evaluation/ragas_eval.py
+```
+
+| Métrica | Descrição |
+|---|---|
+| `faithfulness` | Respostas ancoradas nos contextos recuperados |
+| `answer_relevancy` | Relevância da resposta à pergunta |
+| `context_precision` | Precisão dos contextos recuperados |
+| `context_recall` | Cobertura dos contextos em relação ao ground truth |
+
+**LLM-as-Judge** ([evaluation/llm_judge.py](evaluation/llm_judge.py)):
+
+Avalia `accuracy`, `completeness` e `actionability` com GPT-4o-mini como árbitro.
+
+**Benchmark de configurações** ([evaluation/benchmark_results.json](evaluation/benchmark_results.json)):
+
+| Config | top_k | temperature | Tempo médio |
+|---|---|---|---|
+| **config_A** (produção) | 3 | 0.0 | 14,1 s |
+| config_B | 5 | 0.0 | 18,3 s |
+| config_C | 3 | 0.3 | 16,7 s |
+
+**Observabilidade operacional**:
+
+- **Prometheus** — métricas de latência, throughput, erros, probabilidades de churn, PSI de drift
+- **Grafana** — dashboards provisionados automaticamente via [configs/grafana/](configs/grafana/)
+- **Langfuse** — rastreamento de chamadas LLM, tokens, latência e custo por request
+- **Evidently** — detecção de data drift por PSI: warning > 0.1, retrain trigger > 0.2
+
+```bash
+# Gerar relatório de drift manualmente
+curl -X POST http://localhost:8000/drift-report
+```
+
+---
+
+### Etapa 4 — Segurança e Governança
+
+**Guardrails** ([src/security/guardrails.py](src/security/guardrails.py)):
+
+- `InputGuardrail` — detecta prompt injection (6 padrões regex), limita tamanho a 4096 chars, filtra tópicos fora de escopo
+- `OutputGuardrail` — remove PII via Presidio: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `BR_CPF`
+
+**OWASP Top 10 para LLMs** — 6 ameaças mapeadas com mitigações implementadas: [docs/OWASP_MAPPING.md](docs/OWASP_MAPPING.md)
+
+**Red Team** — 6 cenários adversariais testados e documentados: [docs/RED_TEAM_REPORT.md](docs/RED_TEAM_REPORT.md)
+
+**LGPD**: nenhum dado pessoal identificável no dataset; `CustomerID` removido antes do treino; dados sintéticos em dev/CI; direitos de acesso, correção e exclusão documentados: [docs/LGPD_PLAN.md](docs/LGPD_PLAN.md)
+
+---
+
+## API
+
+Documentação interativa disponível em `http://localhost:8000/docs`.
+
+### `POST /predict`
+
+Predição de baixa latência sem chamada ao LLM.
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenure": 12,
+    "MonthlyCharges": 79.5,
+    "TotalCharges": 954.0,
+    "Contract": "Month-to-month",
+    "InternetService": "Fiber optic",
+    "PaymentMethod": "Electronic check",
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "No",
+    "Dependents": "No",
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "No",
+    "DeviceProtection": "No",
+    "TechSupport": "No",
+    "StreamingTV": "Yes",
+    "StreamingMovies": "Yes",
+    "PaperlessBilling": "Yes"
+  }'
+```
+
+```json
+{
+  "churn_probability": 0.83,
+  "prediction": 1,
+  "risk_level": "high"
+}
+```
+
+### `POST /analyze`
+
+Análise completa via agente ReAct com RAG e recomendações de retenção.
+
+```bash
+curl -X POST http://localhost:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_features": { "tenure": 12, "MonthlyCharges": 79.5, "..." : "..." },
+    "question": "Quais ações de retenção recomendar para este cliente?",
+    "include_contexts": true
+  }'
+```
+
+```json
+{
+  "analysis": "Cliente com alto risco de churn (83%)...",
+  "customer_id": "uuid-...",
+  "contexts": ["estratégia de retenção...", "..."]
+}
+```
+
+### `GET /health`
+
+Retorna status granular por componente: `rag`, `agent`, `drift_detector`, `guardrails`.
+
+### `GET /metrics`
+
+Endpoint Prometheus para scraping de métricas operacionais.
+
+---
+
+## Testes
+
+```bash
+# Executar suite completa com cobertura
+uv run pytest tests/ -x --cov=src --cov-fail-under=60
+
+# Por módulo
+uv run pytest tests/test_features.py    # schema contracts (pandera)
+uv run pytest tests/test_api.py         # integração FastAPI (TestClient)
+uv run pytest tests/test_guardrails.py  # segurança
+uv run pytest tests/test_agent.py       # agente ReAct
+```
+
+O CI bloqueia merge se cobertura cair abaixo de 60%.
+
+---
+
+## CI/CD
+
+### `ci.yml` — acionado em PRs e pushes para branches `feat/*`, `fix/*`
+
+```
+lint (ruff) → testes (pytest ≥60%) → build artefatos
+```
+
+### `retraining.yml` — agendado via cron
+
+```
+gera dados de drift → executa champion-challenger → promove se delta_auc ≥ 0.005
+```
+
+Variável de ambiente necessária no repositório: `OPENAI_API_KEY` (como secret do GitHub Actions).
+
+---
+
+## Documentação de Governança
+
+| Documento | Descrição |
+|---|---|
+| [docs/MODEL_CARD.md](docs/MODEL_CARD.md) | Metadados do modelo, métricas, fairness por grupo demográfico |
+| [docs/SYSTEM_CARD.md](docs/SYSTEM_CARD.md) | Arquitetura do sistema, escopo de uso, limitações conhecidas |
+| [docs/LGPD_PLAN.md](docs/LGPD_PLAN.md) | Mapeamento de dados, medidas de proteção, direitos dos titulares |
+| [docs/OWASP_MAPPING.md](docs/OWASP_MAPPING.md) | 6 ameaças OWASP Top 10 LLM mapeadas com mitigações |
+| [docs/RED_TEAM_REPORT.md](docs/RED_TEAM_REPORT.md) | 6 cenários adversariais com resultados e vulnerabilidades residuais |
+
+---
+
+## Referências
+
+1. Yao, S. et al. (2023). *ReAct: Synergizing Reasoning and Acting in Language Models*. ICLR 2023. https://arxiv.org/abs/2210.03629
+2. Es, S. et al. (2024). *RAGAS: Automated Evaluation of Retrieval Augmented Generation*. https://arxiv.org/abs/2309.15217
+3. Mitchell, M. et al. (2019). *Model Cards for Model Reporting*. FAT* Conference.
+4. Microsoft (2024). *MLOps Maturity Model*. Azure ML Documentation.
+5. OWASP (2025). *OWASP Top 10 for Large Language Model Applications*. https://owasp.org/www-project-top-10-for-large-language-model-applications/
+6. Brasil (2018). *Lei nº 13.709/2018 (LGPD)* — Proteção de dados pessoais.
