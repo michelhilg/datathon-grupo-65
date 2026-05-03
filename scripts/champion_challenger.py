@@ -208,10 +208,20 @@ def main() -> None:
 
     if champion is None:
         delta_auc = 0.0
-        decision = "bootstrap"
-        logger.info("Bootstrap: nenhum champion existente — challenger vira champion inicial.")
-        _export_challenger(challenger, params)
-        _write_updated_metrics(challenger, params)
+        min_auc = params["model"]["min_auc_threshold"]
+        if challenger["auc"] < min_auc:
+            decision = "skip"
+            logger.warning(
+                "Bootstrap ABORTADO: challenger AUC=%.4f abaixo do threshold mínimo %.4f"
+                " — nenhum modelo promovido.",
+                challenger["auc"],
+                min_auc,
+            )
+        else:
+            decision = "bootstrap"
+            logger.info("Bootstrap: nenhum champion existente — challenger vira champion inicial.")
+            _export_challenger(challenger, params)
+            _write_updated_metrics(challenger, params)
     else:
         champion_auc = champion.get("auc", 0.0)
         logger.info(
