@@ -31,6 +31,8 @@ class ContextAccumulatorHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> None:
         output_str = str(output) if not isinstance(output, str) else output
+        if _CHUNK_SEPARATOR not in output_str:
+            return
         chunks = [c.strip() for c in output_str.split(_CHUNK_SEPARATOR) if c.strip()]
         if chunks:
             self.captured_contexts.extend(chunks)

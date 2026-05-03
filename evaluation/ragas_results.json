@@ -1,27 +1,37 @@
 {
   "ragas_scores": {
-    "faithfulness": 0.2845528455284553,
-    "answer_relevancy": 0.6408985660288155,
-    "context_precision": 0.0,
-    "context_recall": 0.0
+    "faithfulness": 0.9040418507323877,
+    "answer_relevancy": 0.37857274411326747,
+    "context_precision": 0.7833333332941667,
+    "context_recall": 0.4699999999999999
   },
-  "n_evaluated": 3,
-  "mode": "direct",
+  "n_evaluated": 5,
+  "mode": "api",
   "per_pair": [
     {
       "id": "gs_001",
       "profile_type": "high_risk",
-      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 80.07%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\nO cliente apresenta um alto risco de churn, com uma probabilidade de 80%. Isso indic"
+      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 80.07%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\n### Fatores de Risco Identificados\n<PERSON> possível obter os fatores de risco espec"
     },
     {
       "id": "gs_002",
       "profile_type": "high_risk",
-      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 80%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\nO cliente apresenta um alto risco de churn, com uma probabilidade de 80%. Isso indica q"
+      "answer_preview": "### Análise de Risco de Churn do Cliente\n\n**Probabilidade de Churn:** 80%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\n### Fatores de Risco Identificados\n<PERSON> possível obter os cinco principa"
     },
     {
       "id": "gs_003",
       "profile_type": "high_risk",
-      "answer_preview": "### Análise de Risco de Churn do Cliente\n\n**Dados do Cliente:**\n- **Tenure:** 3 meses\n- **Monthly Charges:** R$ 45,20\n- **Total Charges:** R$ 135,60\n- **Contrato:** Month-to-month\n- **Serviço de Inter"
+      "answer_preview": "### Análise de Risco de Churn do Cliente\n\n**Probabilidade de Churn:** 69.99%  \n**Previsão:** Churn  \n**Nível de Risco:** Médio\n\n### Fatores de Risco Identificados\nInfelizmente, não foi possível obter "
+    },
+    {
+      "id": "gs_004",
+      "profile_type": "high_risk",
+      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 81.47%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\n### Fatores de Risco Identificados\nInfelizmente, não foi possível obter os cinco pri"
+    },
+    {
+      "id": "gs_005",
+      "profile_type": "high_risk",
+      "answer_preview": "### Análise de Risco de Churn\n\n**Probabilidade de Churn:** 79.5%  \n**Previsão:** Churn  \n**Nível de Risco:** Alto\n\n### Fatores de Risco Identificados\n<PERSON> possível obter os cinco principais fatore"
     }
   ]
 }
