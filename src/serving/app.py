@@ -139,9 +139,45 @@ async def lifespan(_app: FastAPI):
     _app_state.clear()
 
 
+_DESCRIPTION = """
+## Sobre o sistema
+
+**Churn Retention Assistant** é uma API de inteligência artificial para análise preditiva de churn
+em clientes de telecomunicações. O sistema combina três camadas de inteligência:
+
+- **ML preditivo** — modelo de classificação treinado no dataset *Telco Customer Churn* que calcula
+  a probabilidade de cancelamento e classifica o risco em `low` / `medium` / `high`.
+- **RAG (Retrieval-Augmented Generation)** — base de conhecimento vetorial (ChromaDB) com políticas
+  e estratégias de retenção, consultada dinamicamente durante a análise.
+- **Agente ReAct** (via LangChain) — orquestra chamadas ao modelo ML e à base RAG para produzir
+  uma análise contextualizada e recomendações personalizadas de retenção.
+
+## Segurança e observabilidade
+
+- **Guardrails de entrada e saída** — filtragem de tópicos fora de escopo e detecção de prompt injection.
+- **Monitoramento de drift** — detecção automática de distribuição com PSI via Evidently.
+- **Métricas Prometheus** — latência, probabilidades de churn, contagem de tool calls e bloqueios de segurança (disponível em `/metrics`).
+- **Rastreamento LLM** — integração opcional com Langfuse para observabilidade de chamadas ao agente.
+
+## Endpoints
+
+| Endpoint | Método | Descrição |
+|---|---|---|
+| `/health` | `GET` | Status granular de cada subsistema (RAG, agente, drift detector, guardrails) |
+| `/predict` | `POST` | Predição direta via modelo ML — sem agente, sem chamada a LLM |
+| `/analyze` | `POST` | Análise completa via agente ReAct com recomendações de retenção |
+| `/drift-report` | `POST` | Relatório PSI de drift entre dados de referência e predições recentes |
+
+## Formato de entrada
+
+Todos os endpoints que recebem dados de cliente esperam o schema do dataset **Telco Customer Churn**
+(IBM Sample Data). Campos como `tenure`, `MonthlyCharges`, `Contract` e `InternetService` são os
+mais relevantes para o modelo preditivo.
+"""
+
 app = FastAPI(
     title="Churn Retention Assistant",
-    description="Agente ReAct para análise de risco de churn e recomendações de retenção.",
+    description=_DESCRIPTION,
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -183,7 +219,7 @@ class AnalysisRequest(BaseModel):
         description="Pergunta customizada. Se não informada, usa análise padrão completa.",
     )
     include_contexts: bool = Field(
-        default=False,
+        default=True,
         description="Inclui chunks RAG recuperados na resposta (útil para avaliação RAGAS).",
     )
 
@@ -209,7 +245,16 @@ class AnalysisResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    """Retorna status granular por componente — degraded não significa downtime total."""
+    """Retorna status granular por subsistema.
+
+    Cada componente pode estar em `ready`, `degraded` ou `failed`. Um componente `degraded` não
+    derruba os demais — por exemplo, se o agente falhar, `/predict` continua disponível.
+
+    O campo `capabilities` indica quais endpoints estão operacionais no momento:
+    - `predict` — sempre `true` se o servidor estiver de pé.
+    - `analyze` — `true` somente quando o agente ReAct foi inicializado com sucesso.
+    - `drift_report` — `true` somente quando o DriftDetector foi inicializado com sucesso.
+    """
     from src.features.feature_store import get_feature_store
 
     components = {
@@ -243,7 +288,19 @@ def metrics():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
-    """Chama o modelo ML diretamente — sem agente, sem LLM."""
+    """Prediz probabilidade de churn usando o modelo ML diretamente.
+
+    Caminho de baixa latência que bypassa o agente ReAct e o LLM — útil para integrar em sistemas
+    que só precisam do score de risco, sem explicação em linguagem natural.
+
+    Retorna:
+    - `churn_probability` — probabilidade de cancelamento (0.0 a 1.0).
+    - `prediction` — `"churn"` ou `"no churn"`.
+    - `risk_level` — classificação de risco: `"low"`, `"medium"` ou `"high"`.
+
+    Cada chamada registra a predição no DriftDetector (quando disponível) para monitoramento
+    contínuo de distribuição de features.
+    """
     customer_json = json.dumps(request.customer_features, ensure_ascii=False)
     try:
         raw = json.loads(churn_predictor.invoke(customer_json))
@@ -268,10 +325,30 @@ def predict(request: PredictRequest):
 
 @app.post("/analyze", response_model=AnalysisResponse)
 def analyze(request: AnalysisRequest):
-    """Analisa risco de churn e retorna recomendações de retenção via agente ReAct.
+    """Analisa risco de churn e gera recomendações de retenção via agente ReAct.
 
-    Com include_contexts=True retorna também os chunks RAG recuperados,
-    necessário para avaliação RAGAS.
+    O agente executa um ciclo ReAct (Reason → Act → Observe) chamando duas tools em sequência:
+    1. **churn_predictor** — obtém a probabilidade de churn e o nível de risco do cliente.
+    2. **rag_retriever** — busca na base vetorial (ChromaDB) políticas e estratégias de retenção
+       relevantes para o perfil do cliente.
+
+    Com base nos resultados das tools, o LLM produz uma análise contextualizada em linguagem natural
+    com recomendações práticas de retenção.
+
+    Parâmetros:
+    - `customer_features` — dados do cliente no formato Telco dataset (obrigatório).
+    - `question` — pergunta customizada para direcionar a análise. Se omitida, usa o prompt padrão
+      de análise completa de churn.
+    - `include_contexts` — quando `true`, inclui na resposta os chunks RAG recuperados. Útil para
+      avaliação de qualidade de recuperação com RAGAS.
+
+    Retorna:
+    - `analysis` — texto com a análise e as recomendações de retenção.
+    - `customer_id` — ID do cliente extraído de `customer_features.customerID` (se presente).
+    - `contexts` — lista de chunks RAG recuperados (apenas quando `include_contexts=true`).
+
+    Requer que o agente tenha sido inicializado com sucesso (verificável via `/health`).
+    Perguntas fora do escopo de churn/retenção são bloqueadas pelo guardrail de entrada (HTTP 400).
     """
     if "agent" not in _app_state:
         raise HTTPException(status_code=503, detail="Agente ainda não inicializado.")
@@ -323,7 +400,20 @@ def analyze(request: AnalysisRequest):
 
 @app.post("/drift-report")
 def drift_report():
-    """Executa detecção de drift Evidently entre dados de referência e predições recentes."""
+    """Gera relatório de drift entre dados de referência e predições recentes.
+
+    Usa a biblioteca **Evidently** para calcular o PSI (Population Stability Index) de cada feature.
+    O dataset de referência é fixado no treinamento; a janela de predições recentes é acumulada a
+    cada chamada a `/predict` ou `/analyze`.
+
+    Retorna um dicionário com:
+    - `status` — `"ok"` quando o relatório foi gerado com sucesso.
+    - `features` — métricas PSI por feature (disponível quando `status == "ok"`).
+    - `retrain_recommended` — `true` quando o drift detectado supera o limiar configurado em
+      `params.yaml` (`drift.psi_retrain`).
+
+    Requer que o DriftDetector tenha sido inicializado com sucesso (verificável via `/health`).
+    """
     if "drift_detector" not in _app_state:
         raise HTTPException(status_code=503, detail="Drift detector não inicializado.")
     try:
