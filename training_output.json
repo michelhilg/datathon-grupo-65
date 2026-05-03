@@ -1,0 +1,21 @@
+{
+  "experiment_name": "Telco_Customer_Churn_Baseline",
+  "best_run_id": "f39eb0f7ed114b20be8d916cb8d6de1d",
+  "best_model": "Logistic_Regression",
+  "best_auc": 0.8417,
+  "best_f1": 0.6135,
+  "models": [
+    {
+      "name": "Logistic_Regression",
+      "run_id": "f39eb0f7ed114b20be8d916cb8d6de1d",
+      "auc": 0.8417,
+      "f1": 0.6135
+    },
+    {
+      "name": "Random_Forest",
+      "run_id": "472b352d4aae49d39d77cb11b3c8faa3",
+      "auc": 0.8228,
+      "f1": 0.5364
+    }
+  ]
+}

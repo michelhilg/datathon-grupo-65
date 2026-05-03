@@ -113,7 +113,8 @@ def test_analyze_include_contexts_retorna_lista(client):
 
 
 def test_analyze_sem_include_contexts_omite_campo(client):
-    response = client.post("/analyze", json={"customer_features": CUSTOMER_FIXTURE})
+    payload = {"customer_features": CUSTOMER_FIXTURE, "include_contexts": False}
+    response = client.post("/analyze", json=payload)
     data = response.json()
     assert data.get("contexts") is None
 

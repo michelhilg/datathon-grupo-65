@@ -1,12 +1,11 @@
 {
-  "experiment_name": "Telco_Customer_Churn_Retraining",
-  "run_id": "f1b885b63806444db7cdc01d9fd4c4da",
-  "model_name": "Challenger_LR",
-  "auc": 0.4138,
-  "f1": 0.2963,
-  "precision": 0.25,
-  "recall": 0.3636,
+  "experiment_name": "Telco_Customer_Churn_Baseline",
+  "run_id": "f39eb0f7ed114b20be8d916cb8d6de1d",
+  "model_name": "Logistic_Regression",
+  "auc": 0.8417,
+  "f1": 0.6135,
+  "precision": 0.5008,
+  "recall": 0.7914,
   "min_auc_threshold": 0.75,
-  "validation_passed": false,
-  "promoted_by": "champion_challenger"
+  "validation_passed": true
 }

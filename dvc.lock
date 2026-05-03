@@ -13,5 +13,90 @@ stages:
       size: 3182
     - path: src/models/train.py
       hash: md5
-      md5: e558bfab850458a347b2e7e9fda80c08
-      size: 4808
+      md5: 59e72050f5adb7318798d054502f07df
+      size: 6796
+    params:
+      params.yaml:
+        data.raw_path: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+        model.experiment_name: Telco_Customer_Churn_Baseline
+        model.random_state: 42
+        model.test_size: 0.2
+        training:
+          logistic_regression:
+            class_weight: balanced
+            random_state: 42
+            max_iter: 1000
+          random_forest:
+            class_weight: balanced
+            random_state: 42
+            n_estimators: 100
+    outs:
+    - path: training_output.json
+      hash: md5
+      md5: 545869b59eea61dd66b468a874136ac4
+      size: 487
+  prepare_data:
+    cmd: uv run python scripts/prepare_data.py
+    deps:
+    - path: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+      hash: md5
+      md5: 0f9de68e012bd3aed5fa7cdc9fc421af
+      size: 977501
+    - path: scripts/prepare_data.py
+      hash: md5
+      md5: 2e7ea011534131d7214109b33484da0d
+      size: 759
+    - path: src/features/feature_engineering.py
+      hash: md5
+      md5: d518706513df6414bbc0dde0e882d2bd
+      size: 3182
+    params:
+      params.yaml:
+        data.processed_path: data/processed/features.parquet
+        data.raw_path: data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
+    outs:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: d387c6598824b346368a99a8b60d7ad0
+      size: 182535
+  evaluate:
+    cmd: uv run python scripts/evaluate_model.py
+    deps:
+    - path: scripts/evaluate_model.py
+      hash: md5
+      md5: dcca4ac2788399006dfe2b7154fe4e6d
+      size: 1897
+    - path: training_output.json
+      hash: md5
+      md5: 545869b59eea61dd66b468a874136ac4
+      size: 487
+    params:
+      params.yaml:
+        model.experiment_name: Telco_Customer_Churn_Baseline
+        model.min_auc_threshold: 0.75
+    outs:
+    - path: evaluation/model_metrics.json
+      hash: md5
+      md5: 0b029a0ae50772a93755c4a16edaa697
+      size: 277
+  export_model:
+    cmd: uv run python scripts/export_model.py
+    deps:
+    - path: evaluation/model_metrics.json
+      hash: md5
+      md5: 0b029a0ae50772a93755c4a16edaa697
+      size: 277
+    - path: scripts/export_model.py
+      hash: md5
+      md5: f5377915cd3cf6086819aab7e575f524
+      size: 4186
+    params:
+      params.yaml:
+        model.experiment_name: Telco_Customer_Churn_Baseline
+        model.export_dir: model
+    outs:
+    - path: model
+      hash: md5
+      md5: 8230faba483c0d0388fc5394dd679156.dir
+      size: 17202
+      nfiles: 5

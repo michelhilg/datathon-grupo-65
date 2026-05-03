@@ -1,7 +1,7 @@
 channels:
 - conda-forge
 dependencies:
-- python=3.11.15
+- python=3.11.14
 - pip
 - pip:
   - aiohappyeyeballs==2.6.1

@@ -1,4 +1,4 @@
-python: 3.11.15
+python: 3.11.14
 build_dependencies:
 - pip
 - setuptools==81.0.0
