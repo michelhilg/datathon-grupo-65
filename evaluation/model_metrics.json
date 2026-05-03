@@ -1,0 +1,12 @@
+{
+  "experiment_name": "Telco_Customer_Churn_Retraining",
+  "run_id": "3bfb95ffaf9640beb50dd1021e4ae0bc",
+  "model_name": "Challenger_LR",
+  "auc": 0.4138,
+  "f1": 0.2963,
+  "precision": 0.25,
+  "recall": 0.3636,
+  "min_auc_threshold": 0.75,
+  "validation_passed": false,
+  "promoted_by": "champion_challenger"
+}
