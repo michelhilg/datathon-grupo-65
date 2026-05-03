@@ -10,6 +10,7 @@ import pandas as pd
 from langchain_core.tools import tool
 
 from src.features.feature_engineering import build_features
+from src.features.feature_store import get_feature_store
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,33 @@ def _get_model():
     return _model_cache["model"]
 
 
+def _get_or_compute_features(raw: dict) -> pd.DataFrame:
+    """Cache-first: tenta feature store, computa e faz upsert se miss.
+
+    Fallback gracioso: se Redis estiver indisponível, computa normalmente.
+    """
+    customer_id = raw.get("customerID")
+    if customer_id:
+        try:
+            cached = get_feature_store().get(str(customer_id))
+            if cached is not None:
+                logger.info("Feature store hit: customerID=%s", customer_id)
+                return pd.DataFrame([cached])
+        except Exception as exc:
+            logger.warning("Feature store indisponível (get): %s", exc)
+
+    df_features = build_features(pd.DataFrame([raw]))
+
+    if customer_id:
+        try:
+            get_feature_store().upsert(str(customer_id), df_features.iloc[0].to_dict())
+            logger.info("Feature store upsert: customerID=%s", customer_id)
+        except Exception as exc:
+            logger.warning("Feature store indisponível (upsert): %s", exc)
+
+    return df_features
+
+
 @tool
 def churn_predictor(customer_json: str) -> str:
     """Prevê probabilidade de churn dado um JSON com features brutas do cliente Telco.
@@ -98,8 +126,7 @@ def churn_predictor(customer_json: str) -> str:
     """
     try:
         raw = json.loads(customer_json)
-        df_raw = pd.DataFrame([raw])
-        df_features = build_features(df_raw)
+        df_features = _get_or_compute_features(raw)
 
         model = _get_model()
         feature_cols = [c for c in df_features.columns if c != "Churn"]
@@ -135,8 +162,7 @@ def feature_importance(customer_json: str) -> str:
     """
     try:
         raw = json.loads(customer_json)
-        df_raw = pd.DataFrame([raw])
-        df_features = build_features(df_raw)
+        df_features = _get_or_compute_features(raw)
 
         model = _get_model()
         feature_cols = [c for c in df_features.columns if c != "Churn"]

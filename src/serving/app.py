@@ -14,6 +14,13 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
+# Garante que loggers da aplicação (src.*) apareçam no terminal do uvicorn.
+# O uvicorn configura apenas seus próprios loggers; o root fica sem handler por padrão.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(name)s - %(message)s",
+)
+
 from src.agent.rag_pipeline import build_index
 from src.agent.react_agent import analyze_customer, create_churn_agent
 from src.agent.tools import build_tools, churn_predictor
@@ -74,6 +81,7 @@ setup_prometheus_middleware(app)
 
 
 CUSTOMER_EXAMPLE = {
+    "customerID": "CUST-0001",
     "tenure": 2,
     "MonthlyCharges": 75.50,
     "TotalCharges": "151.00",
@@ -133,8 +141,14 @@ class AnalysisResponse(BaseModel):
 @app.get("/health")
 def health():
     """Verifica se a aplicação está pronta para receber requisições."""
+    from src.features.feature_store import get_feature_store
     ready = "agent" in _app_state
-    return {"status": "ok" if ready else "initializing", "agent_ready": ready}
+    feature_store_ok = get_feature_store().ping()
+    return {
+        "status": "ok" if ready else "initializing",
+        "agent_ready": ready,
+        "feature_store": "connected" if feature_store_ok else "unavailable",
+    }
 
 
 @app.get("/metrics", include_in_schema=False)
