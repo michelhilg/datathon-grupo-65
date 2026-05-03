@@ -1,4 +1,4 @@
-artifact_path: /home/runner/work/datathon-grupo-65/datathon-grupo-65/mlruns/2/models/m-c65d17201d4b41fd8a601ddff10c6d51/artifacts
+artifact_path: /Users/michelhilg/Documents/Academic/FIAP/DATATHON/datathon-grupo-65/mlruns/1/models/m-1f047baf0061439580c3a39f0c854a94/artifacts
 flavors:
   python_function:
     env:
@@ -7,7 +7,7 @@ flavors:
     loader_module: mlflow.sklearn
     model_path: model.pkl
     predict_fn: predict
-    python_version: 3.11.15
+    python_version: 3.11.14
   sklearn:
     code: null
     pickled_model: model.pkl
@@ -15,9 +15,9 @@ flavors:
     sklearn_version: 1.8.0
     skops_trusted_types: null
 mlflow_version: 3.11.1
-model_id: m-c65d17201d4b41fd8a601ddff10c6d51
+model_id: m-1f047baf0061439580c3a39f0c854a94
 model_size_bytes: 1959
-model_uuid: m-c65d17201d4b41fd8a601ddff10c6d51
+model_uuid: m-1f047baf0061439580c3a39f0c854a94
 prompts: null
-run_id: f1b885b63806444db7cdc01d9fd4c4da
-utc_time_created: '2026-05-03 12:49:00.214914'
+run_id: f39eb0f7ed114b20be8d916cb8d6de1d
+utc_time_created: '2026-05-03 15:41:26.044179'
