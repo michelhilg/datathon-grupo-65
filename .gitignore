@@ -11,6 +11,7 @@
 # MLflow
 mlruns/
 mlartifacts/
+mlflow.db
 model/
 
 # Python
