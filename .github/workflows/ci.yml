@@ -8,7 +8,6 @@ on:
 
 jobs:
   quality:
-    name: Lint & Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -119,8 +118,6 @@ jobs:
     needs: [quality]
     permissions:
       contents: read
-    # Só executa se evaluation/model_metrics.json existir no repo
-    if: ${{ hashFiles('evaluation/model_metrics.json') != '' }}
 
     steps:
       - uses: actions/checkout@v4
