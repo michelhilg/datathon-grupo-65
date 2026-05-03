@@ -1,0 +1,16 @@
+{
+  "decision": "bootstrap",
+  "delta_auc": 0.0,
+  "threshold": 0.005,
+  "champion": {
+    "run_id": null,
+    "model_name": null,
+    "auc": null
+  },
+  "challenger": {
+    "run_id": "433a742a127b480ea260300c0ff2d7ac",
+    "model_name": "Challenger_LR",
+    "auc": 0.4201,
+    "f1": 0.2963
+  }
+}
